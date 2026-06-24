@@ -1,0 +1,21 @@
+# Training outputs
+results/
+models/
+*.pth.tar
+*.pth
+
+# Data (downloaded separately)
+data/
+benchmark_segmentation_data/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
