@@ -268,10 +268,12 @@ Estimated calendar time: **~12 weeks** for Sprints 0–5; add 2 weeks for option
 
 ## Todos
 
-- [ ] **sprint-0-foundation** — Sprint 0: Scaffold amat repo, pin NASA deps, download benchmark data, smoke-test Super1 + EBC1 with MicroNet v1.0 weights
-- [ ] **sprint-1-pipeline** — Sprint 1: Build config-driven DatasetAdapter, two-phase trainer CLI, logging, and checkpoint resume
-- [ ] **sprint-2-benchmark** — Sprint 2: Run 7×4×2 core matrix (datasets × pretraining × encoders), cloud job orchestration, compare to paper tables
-- [ ] **sprint-3-lowdata** — Sprint 3: Super3 + subsampled training curves; compute relative IoU error reduction vs ImageNet
-- [ ] **sprint-4-sweep** — Sprint 4: Architecture (UNet, UNet++, DeepLabV3+) and encoder sweep with 3–5 seeds on cloud
-- [ ] **sprint-5-report** — Sprint 5: Patch inference, qualitative figures, aggregate tables, reproduction report with pass/fail per claim
-- [ ] **sprint-6-optional** — Sprint 6 (optional): Instance segmentation MMDet port and feature-extraction extensions
+Tracked as GitHub issues under milestone [MicroNet Paper Reproduction](https://github.com/tyc-aidev/microscopy-analysis/milestone/1).
+
+- [ ] [#1 Sprint 0](https://github.com/tyc-aidev/microscopy-analysis/issues/1) — Foundation and smoke test
+- [ ] [#2 Sprint 1](https://github.com/tyc-aidev/microscopy-analysis/issues/2) — Production training pipeline
+- [ ] [#3 Sprint 2](https://github.com/tyc-aidev/microscopy-analysis/issues/3) — Core benchmark matrix
+- [ ] [#4 Sprint 3](https://github.com/tyc-aidev/microscopy-analysis/issues/4) — Low-data ablations
+- [ ] [#5 Sprint 4](https://github.com/tyc-aidev/microscopy-analysis/issues/5) — Architecture and encoder sweep
+- [ ] [#6 Sprint 5](https://github.com/tyc-aidev/microscopy-analysis/issues/6) — Validation, figures, and reproduction report
+- [ ] [#7 Sprint 6](https://github.com/tyc-aidev/microscopy-analysis/issues/7) — Instance segmentation and extensions (optional)
