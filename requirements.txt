@@ -1,0 +1,31 @@
+# MicroNet paper-reproduction dependencies (PyTorch / GPU stack).
+#
+# Pinned to NASA's frozen environment so released MicroNet v1.0 encoder weights
+# load without state-dict drift:
+# https://github.com/nasa/pretrained-microscopy-models/blob/main/requirements_frozen.txt
+#
+# These wheels target CUDA Linux + CPython 3.8-3.10. They are NOT expected to
+# resolve on Python 3.12 / Apple Silicon; provision the reproduction env on a
+# CUDA host (see README "MicroNet reproduction"). The dataset explorer keeps its
+# own light deps in requirements-explorer.txt.
+
+torch==1.10.1
+torchvision==0.11.2
+segmentation-models-pytorch==0.2.1
+timm==0.4.12
+pretrainedmodels==0.7.4
+efficientnet-pytorch==0.6.3
+albumentations==1.1.0
+numpy==1.22.0
+Pillow==9.0.0
+opencv-python-headless==4.5.5.62
+scikit-image==0.19.1
+scikit-learn==1.0.2
+scipy==1.7.3
+tifffile==2021.11.2
+matplotlib==3.5.1
+PyYAML==6.0
+tqdm==4.62.3
+
+# NASA codebase (create_segmentation_model, training loop, losses, weight URLs).
+pretrained-microscopy-models @ git+https://github.com/nasa/pretrained-microscopy-models
