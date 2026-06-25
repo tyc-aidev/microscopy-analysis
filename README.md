@@ -31,6 +31,14 @@ To add or update packages, use `uv pip install <package>` (with the venv activat
 
 Local Streamlit app to browse and understand the NASA benchmark datasets before training. See [PLAN_DATASET_EXPLORER.md](PLAN_DATASET_EXPLORER.md) — tracked in [#8](https://github.com/tyc-aidev/microscopy-analysis/issues/8).
 
+From the repo root (with the venv activated):
+
+```bash
+./scripts/run_explorer.sh
+```
+
+Or: `streamlit run explorer/app.py` after `uv pip install -e .` (done by `./scripts/setup_env.sh`).
+
 ## Sprints
 
 | Sprint | Focus | Issue |
