@@ -1,0 +1,27 @@
+# Sprint 0 reference smoke config: Super1 multiclass.
+# UnetPlusPlus + resnet50 + MicroNet v1.0 (matches the NASA multiclass notebook).
+name: super1_smoke
+
+dataset:
+  name: Super1
+  family: super
+  classes: 3
+  # RGB mask colors (NASA io.py convention).
+  class_values:
+    matrix: [0, 0, 0]
+    secondary: [255, 0, 0]
+    tertiary: [0, 0, 255]
+
+model:
+  architecture: UnetPlusPlus
+  encoder: resnet50
+  pretraining: micronet
+  micronet_version: "1.0"   # paper version; never 1.1
+
+training:
+  lr: 2.0e-4
+  phase2_lr: 1.0e-5
+  patience: 30
+  batch_size: 6
+  loss_weight: 0.7
+  metric_threshold: 0.5

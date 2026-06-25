@@ -1,0 +1,25 @@
+# Sprint 0 reference smoke config: EBC1 binary oxide.
+# UnetPlusPlus + se_resnext50_32x4d + MicroNet v1.0 (matches the NASA binary notebook).
+name: ebc1_smoke
+
+dataset:
+  name: EBC1
+  family: ebc
+  classes: 1                # binary: oxide positive, background implicit
+  # Grayscale mask values (0=bg, 1=oxide, 2=crack); binary task keeps oxide only.
+  class_values:
+    oxide: [1]
+
+model:
+  architecture: UnetPlusPlus
+  encoder: se_resnext50_32x4d
+  pretraining: micronet
+  micronet_version: "1.0"   # paper version; never 1.1
+
+training:
+  lr: 2.0e-4
+  phase2_lr: 1.0e-5
+  patience: 30
+  batch_size: 6
+  loss_weight: 0.7
+  metric_threshold: 0.5
