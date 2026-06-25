@@ -31,7 +31,7 @@ data/
 
 ```bash
 source .venv/bin/activate
-streamlit run explorer/app.py
+./scripts/run_explorer.sh
 ```
 
 See [PLAN_DATASET_EXPLORER.md](../PLAN_DATASET_EXPLORER.md) for details.

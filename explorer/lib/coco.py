@@ -8,6 +8,8 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
+import numpy as np
+import pandas as pd
 from PIL import Image, ImageDraw
 
 from explorer.lib.catalog import load_catalog
@@ -150,6 +152,15 @@ def split_summary(index: CocoSplitIndex) -> dict[str, float | int]:
         "bbox_area_mean": mean(areas),
         "bbox_area_max": max(areas),
     }
+
+
+def bbox_area_histogram(areas: list[float], bins: int = 10) -> pd.DataFrame:
+    """Histogram of bbox areas with string bin labels (Streamlit-compatible)."""
+    if not areas:
+        return pd.DataFrame({"count": []})
+    counts, edges = np.histogram(areas, bins=bins)
+    labels = [f"{edges[i]:.0f}–{edges[i + 1]:.0f}" for i in range(len(counts))]
+    return pd.DataFrame({"count": counts}, index=labels)
 
 
 def _polygon_points(flat: tuple[float, ...]) -> list[tuple[float, float]]:

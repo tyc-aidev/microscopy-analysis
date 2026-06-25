@@ -13,11 +13,16 @@ _bootstrap = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_bootstrap)
 _bootstrap.ensure_repo_root_on_path()
 
-import pandas as pd
 import streamlit as st
 
 from explorer.lib.catalog import load_catalog
-from explorer.lib.coco import instance_seg_root, is_instance_data_populated, render_annotations, split_summary
+from explorer.lib.coco import (
+    bbox_area_histogram,
+    instance_seg_root,
+    is_instance_data_populated,
+    render_annotations,
+    split_summary,
+)
 from explorer.lib.index import get_data_root
 from explorer.lib.streamlit_data import cached_pil_image, load_coco_split_index
 
@@ -50,10 +55,7 @@ with st.sidebar:
     areas = index.bbox_areas()
     if areas:
         with st.expander("BBox size distribution"):
-            df = pd.DataFrame({"bbox_area_px2": areas})
-            df["bin"] = pd.cut(df["bbox_area_px2"], bins=10)
-            chart = df.groupby("bin", observed=True).size().rename("count")
-            st.bar_chart(chart)
+            st.bar_chart(bbox_area_histogram(areas))
 
     st.divider()
     show_bbox = st.checkbox("Show bounding boxes", value=True)

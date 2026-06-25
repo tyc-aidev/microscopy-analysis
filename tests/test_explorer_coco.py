@@ -9,6 +9,7 @@ import pytest
 from PIL import Image
 
 from explorer.lib.coco import (
+    bbox_area_histogram,
     load_coco_split,
     render_annotations,
     resolve_image_path,
@@ -80,6 +81,13 @@ def test_load_coco_split(coco_fixture: Path) -> None:
     assert summary["images"] == 1
     assert summary["annotations"] == 1
     assert summary["bbox_area_mean"] == 300.0
+
+
+def test_bbox_area_histogram() -> None:
+    chart = bbox_area_histogram([100.0, 200.0, 1500.0, 4000.0], bins=3)
+    assert len(chart) == 3
+    assert all(isinstance(label, str) for label in chart.index)
+    assert chart["count"].sum() == 4
 
 
 def test_render_annotations(coco_fixture: Path) -> None:
