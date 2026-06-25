@@ -4,8 +4,9 @@ models/
 *.pth.tar
 *.pth
 
-# Data (downloaded separately)
-data/
+# Local dataset downloads (see data/README.md)
+data/*
+!data/README.md
 benchmark_segmentation_data/
 
 # Python
@@ -14,6 +15,7 @@ __pycache__/
 .venv/
 venv/
 .env
+*.egg-info/
 
 # OS / editor
 .DS_Store

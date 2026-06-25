@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "amat-explorer"
+version = "0.1.0"
+description = "Microscopy dataset explorer and reproduction tooling"
+requires-python = ">=3.12"
+
+[tool.setuptools.packages.find]
+include = ["explorer*"]

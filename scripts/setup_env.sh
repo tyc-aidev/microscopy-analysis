@@ -15,6 +15,9 @@ uv venv --python 3.12 .venv
 # shellcheck source=/dev/null
 source .venv/bin/activate
 
+echo "Installing explorer package (editable) ..."
+uv pip install -e .
+
 if [[ -f requirements-explorer.txt ]]; then
   echo "Installing explorer dependencies ..."
   uv pip install -r requirements-explorer.txt
