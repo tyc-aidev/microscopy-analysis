@@ -1,40 +1,70 @@
-"""Thin wrapper around NASA pretrained microscopy model creation."""
+"""Segmentation model factory pinned to MicroNet v1.0 for paper reproduction.
+
+This mirrors NASA's ``create_segmentation_model`` (build an ``smp`` model, then
+load encoder weights) but forces ``version=1.0`` for MicroNet weights. NASA's own
+``util.get_pretrained_microscopynet_url`` defaults to v1.1 for ``resnet50/micronet``,
+which is the exact reproduction pitfall called out in PLAN.md.
+"""
 
 from __future__ import annotations
 
-import inspect
+MICRONET_PRETRAINING = frozenset({"micronet", "image-micronet"})
+IMAGENET_5K_ENCODERS = frozenset({"dpn68b", "dpn92", "dpn137", "dpn107"})
+
+
+def _micronet_url(encoder: str, encoder_weights: str, url_fn=None) -> str:
+    """Resolve a MicroNet weight URL, always pinned to v1.0."""
+    if url_fn is None:
+        from pretrained_microscopy_models import util
+
+        url_fn = util.get_pretrained_microscopynet_url
+    return url_fn(encoder, encoder_weights, version=1.0)
 
 
 def create_segmentation_model(config: dict) -> object:
-    """Create a segmentation model with paper-correct defaults."""
+    """Create a segmentation model with paper-correct (v1.0) pretrained weights."""
     try:
-        from pretrained_microscopy_models import model as pmm_model
+        import segmentation_models_pytorch as smp
+        import torch
+        import torch.utils.model_zoo as model_zoo
     except ModuleNotFoundError as exc:
         raise RuntimeError(
-            "pretrained_microscopy_models is required for training. "
-            "Install it with `uv pip install git+https://github.com/nasa/pretrained-microscopy-models`."
+            "PyTorch and segmentation_models_pytorch are required for training. "
+            "Install the reproduction stack (see requirements) plus "
+            "`uv pip install git+https://github.com/nasa/pretrained-microscopy-models`."
         ) from exc
 
-    fn = pmm_model.create_segmentation_model
-    sig = inspect.signature(fn)
-    kwargs = {}
+    architecture = config["architecture"]
+    encoder = config["encoder_name"]
+    encoder_weights = config["pretraining"]
+    classes = int(config["num_classes"])
 
-    if "architecture" in sig.parameters:
-        kwargs["architecture"] = config["architecture"]
-    if "encoder_name" in sig.parameters:
-        kwargs["encoder_name"] = config["encoder_name"]
-    if "n_classes" in sig.parameters:
-        kwargs["n_classes"] = config["num_classes"]
-    if "num_classes" in sig.parameters:
-        kwargs["num_classes"] = config["num_classes"]
-    if "pretraining" in sig.parameters:
-        kwargs["pretraining"] = config["pretraining"]
-    if "encoder_weights" in sig.parameters:
-        kwargs["encoder_weights"] = config["pretraining"]
+    if classes == 2:
+        raise ValueError(
+            "Binary segmentation must use num_classes=1 (background is implicit); "
+            "got num_classes=2."
+        )
 
-    # Paper reproduction requires v1.0 encoder weights whenever MicroNet is used.
-    if config["pretraining"] in {"micronet", "image-micronet"} and "version" in sig.parameters:
-        kwargs["version"] = 1.0
+    activation = "softmax2d" if classes > 1 else "sigmoid"
+    initial_weights = "imagenet" if encoder_weights == "imagenet" else None
+    if initial_weights == "imagenet" and encoder in IMAGENET_5K_ENCODERS:
+        initial_weights = "imagenet+5k"
 
-    return fn(**kwargs)
+    try:
+        model = getattr(smp, architecture)(
+            encoder_name=encoder,
+            encoder_weights=initial_weights,
+            classes=classes,
+            activation=activation,
+        )
+    except ValueError as exc:
+        raise ValueError(
+            f"{encoder} does not support the dilated mode needed for {architecture}."
+        ) from exc
 
+    if encoder_weights in MICRONET_PRETRAINING:
+        map_location = None if torch.cuda.is_available() else torch.device("cpu")
+        url = _micronet_url(encoder, encoder_weights)
+        model.encoder.load_state_dict(model_zoo.load_url(url, map_location=map_location))
+
+    return model

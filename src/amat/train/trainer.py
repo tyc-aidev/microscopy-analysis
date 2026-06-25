@@ -32,7 +32,12 @@ class TrainResult:
 
 def _git_sha() -> str:
     try:
-        out = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        out = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"],
+            text=True,
+            cwd=Path(__file__).resolve().parent,
+            stderr=subprocess.DEVNULL,
+        ).strip()
     except Exception:
         return "unknown"
     return out if out else "unknown"
@@ -59,7 +64,8 @@ def run_training(config: TrainConfig) -> TrainResult:
     _ = create_segmentation_model(model_cfg)
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint_path = config.output_dir / "checkpoint.pth.tar"
+    # Scaffold placeholder; named to avoid masquerading as a real torch checkpoint.
+    checkpoint_path = config.output_dir / "checkpoint.placeholder"
     metrics_path = config.output_dir / "metrics.json"
 
     metrics_payload = {

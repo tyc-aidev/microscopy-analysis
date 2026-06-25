@@ -18,6 +18,7 @@ class TrainConfig:
     architecture: str
     encoder_name: str
     pretraining: str
+    # Super (multiclass) = 3; EBC binary-oxide = 1 (background implicit, NASA asserts != 2).
     num_classes: int
     output_dir: Path
     seed: int = 42
@@ -28,15 +29,22 @@ class TrainConfig:
     max_epochs_phase2: int = 60
 
 
-def load_train_config(path: Path) -> TrainConfig:
+def load_train_config(path: Path, base_dir: Path | None = None) -> TrainConfig:
+    """Load a training config.
+
+    Relative ``data_root`` / ``output_dir`` are resolved against ``base_dir``
+    (defaults to the current working directory), matching how the repo treats
+    ``data/`` and ``results/`` at the project root when running from there.
+    """
     raw = yaml.safe_load(path.read_text())
-    config_dir = path.parent.resolve()
+    base = (base_dir or Path.cwd()).resolve()
+
     data_root = Path(raw["data_root"])
     if not data_root.is_absolute():
-        data_root = (config_dir / data_root).resolve()
+        data_root = (base / data_root).resolve()
     output_root = Path(raw.get("output_dir", "results"))
     if not output_root.is_absolute():
-        output_root = (config_dir.parent.parent / output_root).resolve()
+        output_root = (base / output_root).resolve()
 
     return TrainConfig(
         run_name=raw["run_name"],

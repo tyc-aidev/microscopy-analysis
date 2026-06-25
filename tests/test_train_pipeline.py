@@ -41,13 +41,15 @@ def test_load_train_config(tmp_path: Path) -> None:
             ]
         )
     )
-    cfg = load_train_config(config_path)
+    cfg = load_train_config(config_path, base_dir=tmp_path)
     assert cfg.run_name == "test_run"
     assert cfg.dataset_name == "Super1"
     assert cfg.pretraining == "micronet"
     assert cfg.lr_phase2 == 1e-5
     assert cfg.data_root.is_absolute()
     assert cfg.output_dir.is_absolute()
+    # Relative output_dir resolves against base_dir, not the config's directory.
+    assert cfg.output_dir == (tmp_path / "results" / "test_run").resolve()
 
 
 def test_run_training_writes_outputs(tmp_path: Path, monkeypatch) -> None:
