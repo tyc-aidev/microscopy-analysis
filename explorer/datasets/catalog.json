@@ -1,0 +1,66 @@
+{
+  "license": "MIT",
+  "source_repo": "https://github.com/nasa/pretrained-microscopy-models",
+  "paper_url": "https://www.nature.com/articles/s41524-022-00878-5",
+  "families": [
+    {
+      "id": "super",
+      "name": "Ni-based Superalloys",
+      "paper_ref": "Super 1–4",
+      "description": "SEM micrographs of γ/γ′ microstructure in Ni-based superalloys. Semantic segmentation of matrix, secondary γ′, and tertiary γ′ phases.",
+      "task": "semantic_segmentation",
+      "mask_format": "rgb_tiff",
+      "pairing_rule": "image.tif pairs with image_mask.tif in the annot folder",
+      "datasets": ["Super1", "Super2", "Super3", "Super4"],
+      "classes": [
+        {"id": "matrix", "label": "Matrix", "color": [0, 0, 0], "value": null},
+        {"id": "secondary", "label": "Secondary γ′", "color": [255, 0, 0], "value": null},
+        {"id": "tertiary", "label": "Tertiary γ′", "color": [0, 0, 255], "value": null}
+      ],
+      "splits": ["train", "val", "test", "different_test"],
+      "notes": "Super2 and Super3 include a different_test split (held-out imaging conditions). Super3 has only 2 training images — a low-data regime."
+    },
+    {
+      "id": "ebc",
+      "name": "Environmental Barrier Coatings",
+      "paper_ref": "EBC 1–3",
+      "description": "SEM images of environmental barrier coatings with oxide and crack phases. Binary benchmark tasks typically merge oxide vs background and ignore cracks.",
+      "task": "semantic_segmentation",
+      "mask_format": "grayscale_tiff",
+      "pairing_rule": "same filename in image and annot folders",
+      "datasets": ["EBC1", "EBC2", "EBC3"],
+      "classes": [
+        {"id": "background", "label": "Background", "color": [0, 0, 0], "value": 0},
+        {"id": "oxide", "label": "Oxide", "color": [255, 128, 0], "value": 1},
+        {"id": "crack", "label": "Crack", "color": [255, 0, 255], "value": 2}
+      ],
+      "splits": ["train", "val", "test"],
+      "notes": "Grayscale mask values 0/1/2. Crack class is often excluded in binary oxide segmentation."
+    }
+  ],
+  "datasets": {
+    "Super1": {"family": "super", "material": "Ni superalloy", "split_counts": {"train": 10, "val": 4, "test": 4}},
+    "Super2": {"family": "super", "material": "Ni superalloy", "split_counts": {"train": 4, "val": 4, "test": 4, "different_test": 4}},
+    "Super3": {"family": "super", "material": "Ni superalloy", "split_counts": {"train": 2, "val": 4, "test": 4, "different_test": 4}, "highlight": "low_data"},
+    "Super4": {"family": "super", "material": "Ni superalloy", "split_counts": {"train": 4, "val": 4, "test": 5}},
+    "EBC1": {"family": "ebc", "material": "EBC", "split_counts": {"train": 18, "val": 3, "test": 3}},
+    "EBC2": {"family": "ebc", "material": "EBC", "split_counts": {"train": 4, "val": 3, "test": 3}},
+    "EBC3": {"family": "ebc", "material": "EBC", "split_counts": {"train": 15, "val": 3, "test": 6}}
+  },
+  "instance_segmentation": {
+    "name": "Melt pool instance segmentation",
+    "description": "512×512 PNG tiles with COCO annotations for melt pool detection (NASA MMDetection Mask R-CNN demo).",
+    "class": "melt_pool",
+    "splits": ["train", "validation"],
+    "annotation_files": {"train": "annotations/train.json", "validation": "annotations/validation.json"}
+  },
+  "examples": {
+    "description": "Reference assets from NASA notebooks — classification sample, ImageNet comparison, XAI heatmaps, prediction comparisons.",
+    "paths": [
+      {"file": "npg.png", "caption": "Microscopy sample used in the classification notebook"},
+      {"file": "dog.jpeg", "caption": "ImageNet comparison image"},
+      {"dir": "regression-and-xai/sample_heatmaps", "caption": "XAI demo heatmap outputs"},
+      {"dir": "instance_segmentation/predictions", "caption": "ImageNet vs MicroNet prediction comparisons"}
+    ]
+  }
+}
