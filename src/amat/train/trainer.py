@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import random
+import subprocess
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -30,10 +31,11 @@ class TrainResult:
 
 
 def _git_sha() -> str:
-    head_file = Path(".git/HEAD")
-    if not head_file.exists():
+    try:
+        out = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
         return "unknown"
-    return "local-worktree"
+    return out if out else "unknown"
 
 
 def run_training(config: TrainConfig) -> TrainResult:

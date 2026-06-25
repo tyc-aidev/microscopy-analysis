@@ -46,6 +46,8 @@ def test_load_train_config(tmp_path: Path) -> None:
     assert cfg.dataset_name == "Super1"
     assert cfg.pretraining == "micronet"
     assert cfg.lr_phase2 == 1e-5
+    assert cfg.data_root.is_absolute()
+    assert cfg.output_dir.is_absolute()
 
 
 def test_run_training_writes_outputs(tmp_path: Path, monkeypatch) -> None:

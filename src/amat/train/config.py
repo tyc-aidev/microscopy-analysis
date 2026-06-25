@@ -30,9 +30,17 @@ class TrainConfig:
 
 def load_train_config(path: Path) -> TrainConfig:
     raw = yaml.safe_load(path.read_text())
+    config_dir = path.parent.resolve()
+    data_root = Path(raw["data_root"])
+    if not data_root.is_absolute():
+        data_root = (config_dir / data_root).resolve()
+    output_root = Path(raw.get("output_dir", "results"))
+    if not output_root.is_absolute():
+        output_root = (config_dir.parent.parent / output_root).resolve()
+
     return TrainConfig(
         run_name=raw["run_name"],
-        data_root=Path(raw["data_root"]),
+        data_root=data_root,
         dataset_name=raw["dataset"]["name"],
         dataset_family=raw["dataset"]["family"],
         split=raw["dataset"].get("split", "train"),
@@ -40,7 +48,7 @@ def load_train_config(path: Path) -> TrainConfig:
         encoder_name=raw["model"]["encoder_name"],
         pretraining=raw["model"]["pretraining"],
         num_classes=int(raw["model"]["num_classes"]),
-        output_dir=Path(raw.get("output_dir", "results")) / raw["run_name"],
+        output_dir=output_root / raw["run_name"],
         seed=int(raw.get("seed", 42)),
         lr_phase1=float(raw.get("optimizer", {}).get("lr_phase1", 2e-4)),
         lr_phase2=float(raw.get("optimizer", {}).get("lr_phase2", 1e-5)),
