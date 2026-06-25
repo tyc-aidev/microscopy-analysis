@@ -48,6 +48,11 @@ class ModelConfig:
             raise ValueError(f"model.architecture must be one of {_ARCHITECTURES}, got {self.architecture!r}")
         if self.pretraining not in _PRETRAINING:
             raise ValueError(f"model.pretraining must be one of {_PRETRAINING}, got {self.pretraining!r}")
+        # micronet_version is normalized but not constrained here: paper reproduction
+        # pins v1.0, and any non-1.0 value is rejected downstream by
+        # amat.models.weights.micronet_weight_url unless allow_non_paper_version is
+        # set (the ablation escape hatch). Keeping config permissive lets Sprint 4
+        # ablations opt in without a schema change.
         object.__setattr__(self, "micronet_version", normalize_version(self.micronet_version))
 
 

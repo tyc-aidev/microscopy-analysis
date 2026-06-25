@@ -12,7 +12,8 @@ line per step:
 
 Steps 4-5 are skipped (not failed) when the PyTorch reproduction stack is not
 installed, so the torch-free checks can run on any machine. Use ``--build`` to
-require the model steps.
+require the model steps. The first ``--build`` downloads the ~100MB v1.0 encoder
+weights into the torch hub cache; subsequent runs reuse the cached file.
 
 Examples:
     python scripts/smoke_test.py --config configs/experiments/super1_smoke.yaml
