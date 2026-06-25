@@ -1,0 +1,6 @@
+# Dataset Explorer — lightweight deps (no PyTorch)
+streamlit>=1.30
+pillow>=9.0
+numpy>=1.22
+matplotlib>=3.5
+pandas>=1.4

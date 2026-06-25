@@ -8,6 +8,25 @@ Reproduction of [Microstructure segmentation with deep learning encoders pre-tra
 
 See [PLAN.md](PLAN.md) for the full reproduction plan, dataset availability audit, and sprint breakdown.
 
+## Python environment
+
+This project uses [uv](https://docs.astral.sh/uv/) for virtualenv and package management. Virtualenvs are created with **Python 3.12** explicitly.
+
+1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
+2. From the repo root, run:
+
+   ```bash
+   ./scripts/setup_env.sh
+   ```
+
+3. Activate the environment:
+
+   ```bash
+   source .venv/bin/activate
+   ```
+
+To add or update packages, use `uv pip install <package>` (with the venv activated) or `uv pip install -r requirements-explorer.txt`. If Python 3.12 is not installed locally, `uv` will download it when creating the venv.
+
 ## Dataset Explorer
 
 Local Streamlit app to browse and understand the NASA benchmark datasets before training. See [PLAN_DATASET_EXPLORER.md](PLAN_DATASET_EXPLORER.md) — tracked in [#8](https://github.com/tyc-aidev/microscopy-analysis/issues/8).
