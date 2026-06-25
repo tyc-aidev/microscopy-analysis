@@ -4,7 +4,9 @@ Reproduction of [Microstructure segmentation with deep learning encoders pre-tra
 
 ## Current status
 
-**Dataset Explorer** — Streamlit app to browse NASA public datasets before training ([#8](https://github.com/tyc-aidev/microscopy-analysis/issues/8)). Next: **Sprint 0** (environment setup and smoke tests).
+**Dataset Explorer** — Streamlit app to browse NASA public datasets before training ([#8](https://github.com/tyc-aidev/microscopy-analysis/issues/8)).
+
+Implementation is tracked in PR [#9](https://github.com/tyc-aidev/microscopy-analysis/pull/9). Next: **Sprint 0** (environment setup and smoke tests).
 
 See [PLAN.md](PLAN.md) for the full reproduction plan and sprint breakdown. Explorer design: [PLAN_DATASET_EXPLORER.md](PLAN_DATASET_EXPLORER.md).
 
