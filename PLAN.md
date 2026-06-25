@@ -270,6 +270,7 @@ Estimated calendar time: **~12 weeks** for Sprints 0–5; add 2 weeks for option
 
 Tracked as GitHub issues under milestone [MicroNet Paper Reproduction](https://github.com/tyc-aidev/microscopy-analysis/milestone/1).
 
+- [ ] [#8 Dataset Explorer](https://github.com/tyc-aidev/microscopy-analysis/issues/8) — Streamlit visualization app (pre-Sprint-0, see [PLAN_DATASET_EXPLORER.md](PLAN_DATASET_EXPLORER.md))
 - [ ] [#1 Sprint 0](https://github.com/tyc-aidev/microscopy-analysis/issues/1) — Foundation and smoke test
 - [ ] [#2 Sprint 1](https://github.com/tyc-aidev/microscopy-analysis/issues/2) — Production training pipeline
 - [ ] [#3 Sprint 2](https://github.com/tyc-aidev/microscopy-analysis/issues/3) — Core benchmark matrix
