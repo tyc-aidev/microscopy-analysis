@@ -1,6 +1,6 @@
 # Training outputs
 results/
-models/
+/models/
 *.pth.tar
 *.pth
 
