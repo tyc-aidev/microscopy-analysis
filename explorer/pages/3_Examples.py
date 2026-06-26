@@ -48,6 +48,6 @@ for section, section_items in sections.items():
     for idx, item in enumerate(section_items):
         with cols[idx % len(cols)]:
             image = cached_pil_image(str(item.path))
-            st.image(image, use_container_width=True)
+            st.image(image, width="stretch")
             st.caption(item.caption)
             st.caption(f"`{item.path.relative_to(examples_dir)}`")

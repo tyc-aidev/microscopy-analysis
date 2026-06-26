@@ -1,0 +1,9 @@
+# Streamlit Community Cloud dependency file.
+#
+# Cloud searches the entrypoint's directory (explorer/) before the repo root and
+# installs the first recognized file, so this is picked up automatically for
+# `streamlit run explorer/app.py` — and takes precedence over any future root
+# requirements.txt (reserved for the PyTorch reproduction stack).
+#
+# The canonical list lives at the repo root; this just re-uses it.
+-r ../requirements-explorer.txt
