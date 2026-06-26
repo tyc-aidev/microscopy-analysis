@@ -1,0 +1,22 @@
+# Apple Silicon (MPS) training/dev stack.
+#
+# The paper-pinned requirements.txt (torch 1.10.1) predates the MPS backend and
+# has no arm64 wheels, so local Metal training uses a modern torch + modern smp.
+# Our amat.models.create_segmentation_model builds via segmentation_models_pytorch
+# directly and loads the v1.0 encoder weights itself, so NASA's pmm (and its old
+# pins) is NOT required for build / forward / smoke training here.
+#
+# Caveat: this is a DIFFERENT torch/smp than the reproduction env, so use it for
+# development and iteration. Bit-exact paper numbers still come from the CUDA
+# host with requirements.txt (see issue #16).
+
+torch>=2.2
+torchvision>=0.17
+segmentation-models-pytorch>=0.3.3
+timm>=0.9
+albumentations>=1.4
+numpy>=1.24
+Pillow>=9.0
+scikit-image>=0.21
+PyYAML>=6.0
+tqdm>=4.65

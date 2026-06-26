@@ -33,6 +33,7 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from amat.config import ExperimentConfig, load_experiment_config  # noqa: E402
 from amat.data import discover_pairs, split_counts  # noqa: E402
+from amat.device import resolve_device  # noqa: E402
 from amat.models import create_segmentation_model, micronet_weight_url  # noqa: E402
 
 PASS, SKIP, FAIL = "PASS", "SKIP", "FAIL"
@@ -90,13 +91,16 @@ def check_weight_url(report: Report, cfg: ExperimentConfig, check_url: bool) -> 
         report.log(FAIL, "weights", f"HEAD {url} failed: {exc}")
 
 
-def check_model(report: Report, cfg: ExperimentConfig, require_build: bool, device: str) -> None:
+def check_model(report: Report, cfg: ExperimentConfig, require_build: bool, prefer_device: str) -> None:
     if not _torch_stack_available():
         status = FAIL if require_build else SKIP
-        report.log(status, "model", "torch + segmentation_models_pytorch not installed (reproduction env)")
+        report.log(status, "model", "torch + segmentation_models_pytorch not installed")
         return
     try:
         import torch  # noqa: PLC0415
+
+        device = resolve_device(prefer_device)
+        report.log(PASS, "device", f"using {device.type}")
 
         model = create_segmentation_model(
             cfg.model.architecture,
@@ -110,7 +114,7 @@ def check_model(report: Report, cfg: ExperimentConfig, require_build: bool, devi
 
         with torch.no_grad():
             out = model(torch.randn(1, 3, 256, 256, device=device))
-        report.log(PASS, "forward", f"output shape {tuple(out.shape)}")
+        report.log(PASS, "forward", f"output shape {tuple(out.shape)} on {device.type}")
     except Exception as exc:  # noqa: BLE001
         report.log(FAIL, "model", f"{type(exc).__name__}: {exc}")
 
@@ -121,7 +125,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--data-root", type=Path, default=None, help="override DATA_ROOT")
     parser.add_argument("--check-url", action="store_true", help="HTTP-HEAD the weight URL")
     parser.add_argument("--build", action="store_true", help="require model build/forward (fail if torch missing)")
-    parser.add_argument("--device", default="cpu", help="torch device for model checks")
+    parser.add_argument("--device", default="auto", choices=("auto", "cuda", "mps", "cpu"), help="preferred device")
     return parser.parse_args(argv)
 
 

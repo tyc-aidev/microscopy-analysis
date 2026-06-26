@@ -99,6 +99,30 @@ python -m venv .venv-repro && source .venv-repro/bin/activate
 pip install -r requirements.txt
 ```
 
+### Apple Silicon (MPS) — local training and iteration
+
+To train/iterate locally on an Apple Silicon Mac (Metal / MPS), use the modern
+stack in `requirements-apple.txt` (torch 2.x + modern `segmentation_models_pytorch`).
+`amat.models.create_segmentation_model` builds via smp directly and loads the v1.0
+encoder weights itself, so NASA's `pmm` (and its torch-1.10 pins) is **not** needed
+for build / forward / smoke training:
+
+```bash
+uv venv --python 3.12 .venv && source .venv/bin/activate
+uv pip install -r requirements-apple.txt
+python scripts/smoke_test.py --config configs/experiments/super1_smoke.yaml --build --device auto
+```
+
+`scripts/smoke_test.py` and `amat.device.resolve_device()` auto-select
+`cuda → mps → cpu` and enable `PYTORCH_ENABLE_MPS_FALLBACK` for the handful of ops
+not yet implemented on MPS. Verified on Apple Silicon (torch 2.x / smp 0.5.x): the
+v1.0 weights for `resnet50` and `se_resnext50_32x4d` load cleanly and a forward pass
+runs on `mps`.
+
+> Caveat: MPS uses a different torch/smp than the paper-pinned env, so it is for
+> **development and iteration**. Bit-exact paper numbers still come from the CUDA
+> host with `requirements.txt` (issue #16).
+
 ### Smoke test (Sprint 0)
 
 The smoke test runs every check the environment allows (config, data pairing,
