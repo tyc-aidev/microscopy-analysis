@@ -116,17 +116,22 @@ zip` if you prefer not to ship `zstandard`.
 ```bash
 wrangler r2 bucket create microscopy-analysis-datasets
 wrangler r2 object put microscopy-analysis-datasets/amat-data-sample.tar.zst \
-  --file data/dist/amat-data-sample.tar.zst --remote
+  --file data/dist/amat-data-sample.tar.zst --content-type application/zstd --remote
+wrangler r2 bucket dev-url enable microscopy-analysis-datasets   # or attach a custom domain
 ```
 
-Enable a public bucket URL (or attach a custom domain) in the Cloudflare dashboard.
+The trimmed sample archive (~33 MB compressed) is already provisioned at:
+
+```
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst
+```
 
 ### 3. Configure Streamlit secrets
 
 In the app's **Settings → Secrets**, set the public archive URL:
 
 ```toml
-DATA_ARCHIVE_URL = "https://<public-r2-domain>/amat-data-sample.tar.zst"
+DATA_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst"
 ```
 
 For a private bucket, use S3-compatible credentials instead (downloaded via `boto3`):
