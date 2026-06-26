@@ -88,5 +88,5 @@ echo
 echo "Built $OUT ($SIZE)."
 echo
 echo "Upload to Cloudflare R2 (public bucket, data is MIT):"
-echo "  wrangler r2 object put amat-datasets/$(basename "$OUT") --file \"$OUT\" --remote"
+echo "  wrangler r2 object put microscopy-analysis-datasets/$(basename "$OUT") --file \"$OUT\" --remote"
 echo "Then set DATA_ARCHIVE_URL in Streamlit secrets to the bucket's public URL + object key."

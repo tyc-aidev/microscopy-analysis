@@ -75,10 +75,10 @@ def test_resolve_config_r2(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("R2_ENDPOINT", "https://r2")
     monkeypatch.setenv("R2_ACCESS_KEY_ID", "id")
     monkeypatch.setenv("R2_SECRET_ACCESS_KEY", "secret")
-    monkeypatch.setenv("R2_BUCKET", "amat-datasets")
+    monkeypatch.setenv("R2_BUCKET", "microscopy-analysis-datasets")
     monkeypatch.setenv("R2_OBJECT_KEY", "data.tar.zst")
     cfg = resolve_remote_config()
-    assert cfg is not None and cfg.bucket == "amat-datasets" and cfg.url is None
+    assert cfg is not None and cfg.bucket == "microscopy-analysis-datasets" and cfg.url is None
 
 
 def test_resolve_config_incomplete_r2_is_none(monkeypatch: pytest.MonkeyPatch) -> None:

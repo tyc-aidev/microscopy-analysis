@@ -107,8 +107,8 @@ zip` if you prefer not to ship `zstandard`.
 ### 2. Upload to R2
 
 ```bash
-wrangler r2 bucket create amat-datasets
-wrangler r2 object put amat-datasets/amat-data-sample.tar.zst \
+wrangler r2 bucket create microscopy-analysis-datasets
+wrangler r2 object put microscopy-analysis-datasets/amat-data-sample.tar.zst \
   --file data/dist/amat-data-sample.tar.zst --remote
 ```
 
@@ -128,7 +128,7 @@ For a private bucket, use S3-compatible credentials instead (downloaded via `bot
 R2_ENDPOINT = "https://<account-id>.r2.cloudflarestorage.com"
 R2_ACCESS_KEY_ID = "..."
 R2_SECRET_ACCESS_KEY = "..."
-R2_BUCKET = "amat-datasets"
+R2_BUCKET = "microscopy-analysis-datasets"
 R2_OBJECT_KEY = "amat-data-sample.tar.zst"
 ```
 
