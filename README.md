@@ -88,6 +88,62 @@ You only need the explorer dependencies installed (`pip install -r requirements-
 pytest tests/ -q
 ```
 
+## Deploy to Streamlit Community Cloud
+
+Streamlit Cloud never runs `setup_env.sh`/`download_data.sh` and has an ephemeral
+filesystem, so the app fetches a prepackaged dataset archive from
+[Cloudflare R2](https://developers.cloudflare.com/r2/) at runtime
+([#17](https://github.com/tyc-aidev/microscopy-analysis/issues/17)). R2 has **$0
+egress**, which suits Cloud re-downloading on every cold start. NASA data is MIT,
+so a public bucket is fine.
+
+### 1. Build the archive
+
+Download data locally, then package the trimmed (Cloud) subset:
+
+```bash
+./scripts/download_data.sh            # or --sample for a lighter local checkout
+./scripts/build_data_archive.sh       # --sample (default) | --full
+```
+
+This writes `data/dist/amat-data-sample.tar.zst`, rooted at
+`benchmark_segmentation_data/`, `instance_segmentation/`, and `examples/` so the
+app can extract it straight into `DATA_ROOT`. Use `--format tar.gz` or `--format
+zip` if you prefer not to ship `zstandard`.
+
+### 2. Upload to R2
+
+```bash
+wrangler r2 bucket create microscopy-analysis-datasets
+wrangler r2 object put microscopy-analysis-datasets/amat-data-sample.tar.zst \
+  --file data/dist/amat-data-sample.tar.zst --remote
+```
+
+Enable a public bucket URL (or attach a custom domain) in the Cloudflare dashboard.
+
+### 3. Configure Streamlit secrets
+
+In the app's **Settings → Secrets**, set the public archive URL:
+
+```toml
+DATA_ARCHIVE_URL = "https://<public-r2-domain>/amat-data-sample.tar.zst"
+```
+
+For a private bucket, use S3-compatible credentials instead (downloaded via `boto3`):
+
+```toml
+R2_ENDPOINT = "https://<account-id>.r2.cloudflarestorage.com"
+R2_ACCESS_KEY_ID = "..."
+R2_SECRET_ACCESS_KEY = "..."
+R2_BUCKET = "microscopy-analysis-datasets"
+R2_OBJECT_KEY = "amat-data-sample.tar.zst"
+```
+
+On first load, `explorer.lib.remote_data.ensure_data()` downloads and extracts the
+archive once per container into `/tmp/amat-data` (override with `REMOTE_DATA_ROOT`)
+and drops a `.ready` marker. Local runs with populated `DATA_ROOT` skip the
+download entirely. Set the app entry point to `explorer/app.py`.
+
 ## Sprints
 
 | Sprint | Focus | Issue |

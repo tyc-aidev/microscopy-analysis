@@ -24,6 +24,7 @@ from explorer.lib.coco import (
     split_summary,
 )
 from explorer.lib.index import get_data_root
+from explorer.lib.remote_data import ensure_data
 from explorer.lib.streamlit_data import cached_pil_image, load_coco_split_index
 
 st.set_page_config(page_title="Instance Segmentation", layout="wide")
@@ -31,6 +32,8 @@ st.set_page_config(page_title="Instance Segmentation", layout="wide")
 catalog = load_catalog()["instance_segmentation"]
 st.title("Instance Segmentation")
 st.caption(catalog["description"])
+
+ensure_data()
 
 data_root = get_data_root()
 instance_root = instance_seg_root(data_root)

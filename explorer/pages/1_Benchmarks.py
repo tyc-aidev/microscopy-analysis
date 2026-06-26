@@ -18,6 +18,7 @@ from PIL import Image
 
 from explorer.lib.catalog import get_dataset_info, list_benchmark_datasets
 from explorer.lib.index import is_data_populated, records_for, split_counts, splits_for_dataset
+from explorer.lib.remote_data import ensure_data
 from explorer.lib.masks import (
     class_pixel_counts,
     colored_mask_rgba,
@@ -30,6 +31,8 @@ st.set_page_config(page_title="Benchmarks", layout="wide")
 
 st.title("Semantic Benchmarks")
 st.caption("Browse Super1–4 and EBC1–3 with mask overlays.")
+
+ensure_data()
 
 if not is_data_populated():
     st.warning("Benchmark data not found. Run `./scripts/download_data.sh` from the repo root.")

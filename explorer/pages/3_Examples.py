@@ -18,6 +18,7 @@ import streamlit as st
 from explorer.lib.catalog import load_catalog
 from explorer.lib.examples import examples_root, is_examples_data_populated, list_example_items
 from explorer.lib.index import get_data_root
+from explorer.lib.remote_data import ensure_data
 from explorer.lib.streamlit_data import cached_pil_image
 
 st.set_page_config(page_title="Examples", layout="wide")
@@ -25,6 +26,8 @@ st.set_page_config(page_title="Examples", layout="wide")
 examples_meta = load_catalog()["examples"]
 st.title("Examples and Reference Assets")
 st.caption(examples_meta["description"])
+
+ensure_data()
 
 data_root = get_data_root()
 examples_dir = examples_root(data_root)
