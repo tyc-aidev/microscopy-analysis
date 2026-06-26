@@ -25,7 +25,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
 from explorer.lib.index import get_data_root, is_data_populated
 
@@ -139,7 +139,10 @@ def extract_archive(archive_path: Path, dest: Path) -> None:
 
 def _download(config: RemoteConfig, dest_file: Path) -> None:
     if config.url:
-        with urlopen(config.url) as response, dest_file.open("wb") as out:
+        # Cloudflare r2.dev rejects the default Python-urllib User-Agent with 403,
+        # so send an explicit one.
+        request = Request(config.url, headers={"User-Agent": "amat-explorer/1.0"})
+        with urlopen(request) as response, dest_file.open("wb") as out:
             shutil.copyfileobj(response, out, _DOWNLOAD_CHUNK)
         return
 
