@@ -190,3 +190,13 @@ def test_ensure_data_downloads_when_configured(
     import os
 
     assert os.environ["DATA_ROOT"] == str(root)
+
+
+def test_ensure_data_raises_on_bad_source(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DATA_ROOT", str(tmp_path / "empty"))
+    monkeypatch.setenv("REMOTE_DATA_ROOT", str(tmp_path / "remote-root"))
+    monkeypatch.setenv("DATA_ARCHIVE_URL", (tmp_path / "missing.tar.gz").as_uri())
+    with pytest.raises(Exception):
+        remote_data._ensure_data()

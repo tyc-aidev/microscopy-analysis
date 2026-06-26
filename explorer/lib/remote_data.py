@@ -200,7 +200,11 @@ try:
 
     @_st.cache_resource(show_spinner="Downloading datasets...")
     def _ensure_data_cached() -> str | None:
-        root = _ensure_data()
+        try:
+            root = _ensure_data()
+        except Exception as exc:  # degrade to the download-prompt UI instead of crashing
+            _st.error(f"Could not fetch datasets from the configured source: {exc}")
+            return None
         return str(root) if root else None
 
 except ImportError:  # pragma: no cover - streamlit always present in the app env

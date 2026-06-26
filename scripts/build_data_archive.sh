@@ -36,7 +36,12 @@ done
 }
 
 case "$FORMAT" in
-  tar.zst|tar.gz|zip) ;;
+  tar.zst)
+    command -v zstd >/dev/null 2>&1 || {
+      echo "zstd CLI not found (needed for --format tar.zst). Install it or use --format tar.gz." >&2
+      exit 1
+    } ;;
+  tar.gz|zip) ;;
   *) echo "Unsupported --format: $FORMAT (use tar.zst, tar.gz, or zip)" >&2; exit 2 ;;
 esac
 
