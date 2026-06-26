@@ -118,4 +118,4 @@ with view_col:
         show_mask=show_mask,
         mask_alpha=mask_alpha,
     )
-    st.image(rendered, use_container_width=True)
+    st.image(rendered, width="stretch")

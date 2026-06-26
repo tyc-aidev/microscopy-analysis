@@ -27,7 +27,7 @@ This project uses [uv](https://docs.astral.sh/uv/) for virtualenv and package ma
    source .venv/bin/activate
    ```
 
-Dependencies for the explorer live in `requirements-explorer.txt` (Streamlit, Pillow, pandas, matplotlib — no PyTorch). `./scripts/setup_env.sh` creates the venv, installs the explorer package in editable mode, and installs those requirements.
+Dependencies for the explorer live in `requirements-explorer.txt` (Streamlit, Pillow, pandas, matplotlib — no PyTorch). `./scripts/setup_env.sh` creates the venv, installs the explorer package in editable mode, and installs those requirements. The editable install is a local convenience only — at runtime imports resolve via `explorer/_bootstrap.py`, which puts the repo root on `sys.path`.
 
 ## Dataset Explorer
 
@@ -64,7 +64,14 @@ Opens at [http://localhost:8501](http://localhost:8501). Alternative:
 streamlit run explorer/app.py
 ```
 
-(`uv pip install -e .` is required if you skip `./scripts/setup_env.sh`.)
+You only need the explorer dependencies installed (`pip install -r requirements-explorer.txt`); the editable package install is not required because `explorer/_bootstrap.py` handles imports.
+
+### Deploy to Streamlit Community Cloud
+
+- **Entrypoint:** `explorer/app.py`
+- **Dependencies:** Cloud auto-installs from `explorer/requirements.txt` (found before any root `requirements.txt`, which is reserved for the PyTorch stack). That file re-uses the canonical `requirements-explorer.txt`.
+- **Imports:** resolved by `explorer/_bootstrap.py` — no `pip install -e .` needed (Cloud never runs `setup_env.sh`). `pyproject.toml` is ignored by Cloud and is for local installs only.
+- **Data:** `data/` is gitignored, so a fresh Cloud deploy starts empty and the app shows download prompts. To ship data, point `DATA_ROOT` at a mounted volume or bake assets into the image/repo.
 
 ### 3. Pages
 

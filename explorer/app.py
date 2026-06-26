@@ -131,7 +131,7 @@ with st.expander("Dataset statistics", expanded=False):
     st.markdown("**Split summary**")
     summary = split_summary_table(counts)
     if not summary.empty:
-        st.dataframe(summary, use_container_width=True, hide_index=True)
+        st.dataframe(summary, width="stretch", hide_index=True)
     else:
         st.caption("No split rows to display.")
 

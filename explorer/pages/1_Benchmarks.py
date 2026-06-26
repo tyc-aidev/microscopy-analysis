@@ -140,20 +140,20 @@ with view_col:
         composite = image
 
     if view_mode == "original":
-        st.image(image, use_container_width=True)
+        st.image(image, width="stretch")
     elif view_mode == "mask only" and mask_img is not None:
-        st.image(mask_img, use_container_width=True)
+        st.image(mask_img, width="stretch")
     elif view_mode == "overlay" and mask_img is not None:
-        st.image(composite, use_container_width=True)
+        st.image(composite, width="stretch")
     elif view_mode == "side-by-side" and mask_img is not None:
         left, right = st.columns(2)
         with left:
             st.caption("Original")
-            st.image(image, use_container_width=True)
+            st.image(image, width="stretch")
         with right:
             st.caption("Mask")
-            st.image(mask_img, use_container_width=True)
+            st.image(mask_img, width="stretch")
     else:
-        st.image(image, use_container_width=True)
+        st.image(image, width="stretch")
         if mask_img is None:
             st.warning("No mask paired for this image.")
