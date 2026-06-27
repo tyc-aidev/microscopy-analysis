@@ -17,6 +17,7 @@ import streamlit as st
 
 from explorer.lib.catalog import load_catalog
 from explorer.lib.coco import (
+    available_instance_splits,
     bbox_area_histogram,
     instance_seg_root,
     is_instance_data_populated,
@@ -24,6 +25,7 @@ from explorer.lib.coco import (
     split_summary,
 )
 from explorer.lib.index import get_data_root
+from explorer.lib.remote_data import ensure_data
 from explorer.lib.streamlit_data import cached_pil_image, load_coco_split_index
 
 st.set_page_config(page_title="Instance Segmentation", layout="wide")
@@ -32,6 +34,8 @@ catalog = load_catalog()["instance_segmentation"]
 st.title("Instance Segmentation")
 st.caption(catalog["description"])
 
+ensure_data()
+
 data_root = get_data_root()
 instance_root = instance_seg_root(data_root)
 
@@ -39,9 +43,17 @@ if not is_instance_data_populated(data_root):
     st.warning("Instance segmentation data not found. Run `./scripts/download_data.sh` from the repo root.")
     st.stop()
 
+splits = available_instance_splits(instance_root, catalog["splits"])
+if not splits:
+    st.warning("No instance-segmentation tiles found for the configured splits.")
+    st.stop()
+if splits != catalog["splits"]:
+    missing = [s for s in catalog["splits"] if s not in splits]
+    st.info(f"Showing splits with images present: {', '.join(splits)} (missing tiles: {', '.join(missing)}).")
+
 with st.sidebar:
     st.header("Filters")
-    split = st.selectbox("Split", catalog["splits"])
+    split = st.selectbox("Split", splits)
     index = load_coco_split_index(instance_root, split)
     summary = split_summary(index)
 
@@ -118,4 +130,4 @@ with view_col:
         show_mask=show_mask,
         mask_alpha=mask_alpha,
     )
-    st.image(rendered, use_container_width=True)
+    st.image(rendered, width="stretch")

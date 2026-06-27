@@ -21,6 +21,7 @@ from explorer.lib.catalog import load_catalog, list_benchmark_datasets
 from explorer.lib.coco import instance_seg_root, is_instance_data_populated
 from explorer.lib.examples import examples_root, is_examples_data_populated
 from explorer.lib.index import get_data_root, is_data_populated, split_counts
+from explorer.lib.remote_data import ensure_data
 from explorer.lib.stats import (
     aggregate_class_pixels,
     class_distribution_dataframe,
@@ -41,6 +42,8 @@ st.set_page_config(
 def cached_class_pixel_totals(record_rows: tuple) -> dict[str, dict[str, int]]:
     return aggregate_class_pixels(deserialize_records(record_rows))
 
+
+ensure_data()
 
 catalog = load_catalog()
 
@@ -131,7 +134,7 @@ with st.expander("Dataset statistics", expanded=False):
     st.markdown("**Split summary**")
     summary = split_summary_table(counts)
     if not summary.empty:
-        st.dataframe(summary, use_container_width=True, hide_index=True)
+        st.dataframe(summary, width="stretch", hide_index=True)
     else:
         st.caption("No split rows to display.")
 

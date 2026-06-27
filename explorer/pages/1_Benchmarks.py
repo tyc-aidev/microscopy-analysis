@@ -18,6 +18,7 @@ from PIL import Image
 
 from explorer.lib.catalog import get_dataset_info, list_benchmark_datasets
 from explorer.lib.index import is_data_populated, records_for, split_counts, splits_for_dataset
+from explorer.lib.remote_data import ensure_data
 from explorer.lib.masks import (
     class_pixel_counts,
     colored_mask_rgba,
@@ -30,6 +31,8 @@ st.set_page_config(page_title="Benchmarks", layout="wide")
 
 st.title("Semantic Benchmarks")
 st.caption("Browse Super1–4 and EBC1–3 with mask overlays.")
+
+ensure_data()
 
 if not is_data_populated():
     st.warning("Benchmark data not found. Run `./scripts/download_data.sh` from the repo root.")
@@ -140,20 +143,20 @@ with view_col:
         composite = image
 
     if view_mode == "original":
-        st.image(image, use_container_width=True)
+        st.image(image, width="stretch")
     elif view_mode == "mask only" and mask_img is not None:
-        st.image(mask_img, use_container_width=True)
+        st.image(mask_img, width="stretch")
     elif view_mode == "overlay" and mask_img is not None:
-        st.image(composite, use_container_width=True)
+        st.image(composite, width="stretch")
     elif view_mode == "side-by-side" and mask_img is not None:
         left, right = st.columns(2)
         with left:
             st.caption("Original")
-            st.image(image, use_container_width=True)
+            st.image(image, width="stretch")
         with right:
             st.caption("Mask")
-            st.image(mask_img, use_container_width=True)
+            st.image(mask_img, width="stretch")
     else:
-        st.image(image, use_container_width=True)
+        st.image(image, width="stretch")
         if mask_img is None:
             st.warning("No mask paired for this image.")
