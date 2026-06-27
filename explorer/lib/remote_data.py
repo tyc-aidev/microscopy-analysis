@@ -11,10 +11,10 @@ Configuration (env var or ``st.secrets``):
   ``R2_BUCKET`` + ``R2_OBJECT_KEY`` — private bucket via ``boto3``.
 * ``REMOTE_DATA_ROOT`` — extraction target (default ``/tmp/amat-data``).
 
-When nothing is configured, the app falls back to :data:`DEFAULT_ARCHIVE_URL`
-(the public full archive in R2), so a fresh Streamlit Cloud deploy serves all
-seven benchmarks out of the box. Pin a smaller archive by setting
-``DATA_ARCHIVE_URL`` to the sample object on disk-constrained hosts.
+Remote fetching is **explicit opt-in**: if none of the above are configured,
+``ensure_data()`` returns ``None`` and the app shows its download prompt instead
+of pulling anything. On Streamlit Cloud, set ``DATA_ARCHIVE_URL`` to the public
+archive you want served (see ``README.md`` for the canonical URLs).
 
 Local development is unaffected: if ``DATA_ROOT`` already points at populated
 data, ``ensure_data()`` returns immediately without any download.
@@ -37,13 +37,6 @@ from explorer.lib.index import get_data_root, is_data_populated
 DEFAULT_REMOTE_ROOT = "/tmp/amat-data"
 READY_MARKER = ".ready"
 _DOWNLOAD_CHUNK = 1 << 20  # 1 MiB
-
-# Public full archive (all 7 benchmarks + full instance-seg + examples; see #22).
-# Used when no DATA_ARCHIVE_URL / R2 credentials are configured so the deployed
-# app serves the complete dataset without a manually entered secret.
-DEFAULT_ARCHIVE_URL = (
-    "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst"
-)
 
 
 @dataclass(frozen=True)
@@ -98,9 +91,6 @@ def resolve_remote_config() -> RemoteConfig | None:
             bucket=bucket,
             object_key=object_key,
         )
-
-    if DEFAULT_ARCHIVE_URL:
-        return RemoteConfig(url=DEFAULT_ARCHIVE_URL)
     return None
 
 

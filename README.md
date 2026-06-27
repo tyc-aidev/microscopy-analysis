@@ -129,25 +129,24 @@ Both archives are provisioned in the bucket
 [#22](https://github.com/tyc-aidev/microscopy-analysis/issues/22)):
 
 ```
-https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst     # ~169 MB (all 7 benchmarks — default)
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst     # ~169 MB (all 7 benchmarks)
 https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst   # ~33 MB  (trimmed, disk-constrained)
 ```
 
-The app **defaults to the full archive** ([`DEFAULT_ARCHIVE_URL`](explorer/lib/remote_data.py)),
-so a fresh deploy serves all 7 benchmarks with no secret configured. The full
-archive extracts to ~483 MB and peaks near ~660 MB transiently during
-download+extract; this fits Streamlit Community Cloud's ephemeral `/tmp`
-([#25](https://github.com/tyc-aidev/microscopy-analysis/issues/25)). On a
-disk-constrained host, pin the trimmed **sample** instead (see below).
+The **full** archive extracts to ~483 MB and peaks near ~660 MB transiently
+during download+extract; this fits Streamlit Community Cloud's ephemeral `/tmp`
+([#25](https://github.com/tyc-aidev/microscopy-analysis/issues/25)). Prefer the
+trimmed **sample** only on disk-constrained hosts.
 
-### 3. Configure Streamlit secrets (optional)
+### 3. Configure Streamlit secrets (required for remote fetch)
 
-No secret is required — the app fetches the full archive by default. To pin a
-different source (e.g. the trimmed sample on a constrained host), set the public
-archive URL in the app's **Settings → Secrets**:
+Remote fetching is **explicit opt-in**: with no source configured the app shows
+its download prompt and fetches nothing. To serve data on Streamlit Cloud, set
+the public archive URL in the app's **Settings → Secrets** (use the full URL to
+browse all 7 benchmarks), then **reboot the app**:
 
 ```toml
-DATA_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst"
+DATA_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst"
 ```
 
 For a private bucket, use S3-compatible credentials instead (downloaded via `boto3`):
