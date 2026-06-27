@@ -106,10 +106,15 @@ Download data locally, then package the trimmed (Cloud) subset:
 ./scripts/build_data_archive.sh       # --sample (default) | --full
 ```
 
-This writes `data/dist/amat-data-sample.tar.zst`, rooted at
+This writes `data/dist/amat-data-<mode>.tar.zst`, rooted at
 `benchmark_segmentation_data/`, `instance_segmentation/`, and `examples/` so the
 app can extract it straight into `DATA_ROOT`. Use `--format tar.gz` or `--format
 zip` if you prefer not to ship `zstandard`.
+
+| Mode | Contents | Compressed | Extracted |
+|------|----------|-----------|-----------|
+| `--sample` (default) | Super1–4 (all splits) + instance annotations/validation + 2 example images | ~33 MB | ~135 MB |
+| `--full` | All 7 benchmarks (Super1–4 + EBC1–3), full instance-seg (train/val/annotations), complete examples gallery | ~169 MB | ~483 MB |
 
 ### 2. Upload to R2
 
@@ -120,15 +125,25 @@ wrangler r2 object put microscopy-analysis-datasets/amat-data-sample.tar.zst \
 wrangler r2 bucket dev-url enable microscopy-analysis-datasets   # or attach a custom domain
 ```
 
-The trimmed sample archive (~33 MB compressed) is already provisioned at:
+Both archives are provisioned in the bucket
+([#19](https://github.com/tyc-aidev/microscopy-analysis/issues/19),
+[#22](https://github.com/tyc-aidev/microscopy-analysis/issues/22)):
 
 ```
-https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst   # ~33 MB  (Cloud default)
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst     # ~169 MB (all 7 benchmarks)
 ```
+
+The **sample** is the recommended Streamlit Cloud default: it keeps the cold-start
+download small and stays well under the ephemeral-disk budget. The **full** archive
+adds EBC1–3 and the instance-seg train split, but extracts to ~483 MB and peaks
+near ~660 MB transiently during download+extract — opt into it only where `/tmp`
+has the headroom (override the target with `REMOTE_DATA_ROOT`).
 
 ### 3. Configure Streamlit secrets
 
-In the app's **Settings → Secrets**, set the public archive URL:
+In the app's **Settings → Secrets**, set the public archive URL (point at
+`amat-data-full.tar.zst` instead to browse all 7 benchmarks where disk allows):
 
 ```toml
 DATA_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst"
