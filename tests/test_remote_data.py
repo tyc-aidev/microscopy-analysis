@@ -32,9 +32,6 @@ _R2_KEYS = (
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for key in _R2_KEYS:
         monkeypatch.delenv(key, raising=False)
-    # Neutralize the production default so unconfigured-source tests stay hermetic;
-    # the fallback itself is covered by test_resolve_config_defaults_to_full_url.
-    monkeypatch.setattr(remote_data, "DEFAULT_ARCHIVE_URL", None)
 
 
 def _make_payload(root: Path) -> None:
@@ -89,17 +86,8 @@ def test_resolve_config_incomplete_r2_is_none(monkeypatch: pytest.MonkeyPatch) -
     assert resolve_remote_config() is None
 
 
-def test_resolve_config_defaults_to_full_url(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(remote_data, "DEFAULT_ARCHIVE_URL", "https://cdn/amat-data-full.tar.zst")
-    cfg = resolve_remote_config()
-    assert cfg == RemoteConfig(url="https://cdn/amat-data-full.tar.zst")
-
-
-def test_resolve_config_url_overrides_default(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(remote_data, "DEFAULT_ARCHIVE_URL", "https://cdn/amat-data-full.tar.zst")
-    monkeypatch.setenv("DATA_ARCHIVE_URL", "https://cdn/amat-data-sample.tar.zst")
-    cfg = resolve_remote_config()
-    assert cfg == RemoteConfig(url="https://cdn/amat-data-sample.tar.zst")
+def test_resolve_config_unconfigured_is_none() -> None:
+    assert resolve_remote_config() is None
 
 
 def test_extract_tar_gz(tmp_path: Path) -> None:
