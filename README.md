@@ -105,10 +105,15 @@ Download data locally, then package the trimmed (Cloud) subset:
 ./scripts/build_data_archive.sh       # --sample (default) | --full
 ```
 
-This writes `data/dist/amat-data-sample.tar.zst`, rooted at
+This writes `data/dist/amat-data-<mode>.tar.zst`, rooted at
 `benchmark_segmentation_data/`, `instance_segmentation/`, and `examples/` so the
 app can extract it straight into `DATA_ROOT`. Use `--format tar.gz` or `--format
 zip` if you prefer not to ship `zstandard`.
+
+| Mode | Contents | Compressed | Extracted |
+|------|----------|-----------|-----------|
+| `--sample` (default) | Super1–4 (all splits) + instance annotations/validation + 2 example images | ~33 MB | ~135 MB |
+| `--full` | All 7 benchmarks (Super1–4 + EBC1–3), full instance-seg (train/val/annotations), complete examples gallery | ~169 MB | ~483 MB |
 
 ### 2. Upload to R2
 
@@ -119,15 +124,27 @@ wrangler r2 object put microscopy-analysis-datasets/amat-data-sample.tar.zst \
 wrangler r2 bucket dev-url enable microscopy-analysis-datasets   # or attach a custom domain
 ```
 
-The trimmed sample archive (~33 MB compressed) is already provisioned at:
+Both archives are provisioned in the bucket
+([#19](https://github.com/tyc-aidev/microscopy-analysis/issues/19),
+[#22](https://github.com/tyc-aidev/microscopy-analysis/issues/22)):
 
 ```
-https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst     # ~169 MB (all 7 benchmarks — default)
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst   # ~33 MB  (trimmed, disk-constrained)
 ```
 
-### 3. Configure Streamlit secrets
+The app **defaults to the full archive** ([`DEFAULT_ARCHIVE_URL`](explorer/lib/remote_data.py)),
+so a fresh deploy serves all 7 benchmarks with no secret configured. The full
+archive extracts to ~483 MB and peaks near ~660 MB transiently during
+download+extract; this fits Streamlit Community Cloud's ephemeral `/tmp`
+([#25](https://github.com/tyc-aidev/microscopy-analysis/issues/25)). On a
+disk-constrained host, pin the trimmed **sample** instead (see below).
 
-In the app's **Settings → Secrets**, set the public archive URL:
+### 3. Configure Streamlit secrets (optional)
+
+No secret is required — the app fetches the full archive by default. To pin a
+different source (e.g. the trimmed sample on a constrained host), set the public
+archive URL in the app's **Settings → Secrets**:
 
 ```toml
 DATA_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst"
