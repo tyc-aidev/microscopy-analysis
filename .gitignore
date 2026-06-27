@@ -13,6 +13,7 @@ benchmark_segmentation_data/
 __pycache__/
 *.py[cod]
 .venv/
+.venv-repro/
 venv/
 .env
 *.egg-info/

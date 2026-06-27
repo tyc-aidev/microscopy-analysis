@@ -9,4 +9,5 @@ description = "Microscopy dataset explorer and reproduction tooling"
 requires-python = ">=3.12"
 
 [tool.setuptools.packages.find]
-include = ["explorer*"]
+where = [".", "src"]
+include = ["explorer*", "amat*"]

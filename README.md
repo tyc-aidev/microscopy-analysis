@@ -4,9 +4,8 @@ Reproduction of [Microstructure segmentation with deep learning encoders pre-tra
 
 ## Current status
 
-**Dataset Explorer** — Streamlit app to browse NASA public datasets before training ([#8](https://github.com/tyc-aidev/microscopy-analysis/issues/8)).
-
-Implementation is tracked in PR [#9](https://github.com/tyc-aidev/microscopy-analysis/pull/9). Next: **Sprint 0** (environment setup and smoke tests).
+- **Dataset Explorer** — Streamlit app to browse NASA public datasets before training ([#8](https://github.com/tyc-aidev/microscopy-analysis/issues/8), merged in [#9](https://github.com/tyc-aidev/microscopy-analysis/pull/9)).
+- **Sprint 0** — reproduction foundation and smoke test ([#1](https://github.com/tyc-aidev/microscopy-analysis/issues/1)): MicroNet **v1.0** weight pinning, model factory, smoke-test harness.
 
 See [PLAN.md](PLAN.md) for the full reproduction plan and sprint breakdown. Explorer design: [PLAN_DATASET_EXPLORER.md](PLAN_DATASET_EXPLORER.md).
 
@@ -148,6 +147,70 @@ On first load, `explorer.lib.remote_data.ensure_data()` downloads and extracts t
 archive once per container into `/tmp/amat-data` (override with `REMOTE_DATA_ROOT`)
 and drops a `.ready` marker. Local runs with populated `DATA_ROOT` skip the
 download entirely. Set the app entry point to `explorer/app.py`.
+
+## MicroNet reproduction (Sprint 0+)
+
+The PyTorch reproduction (`src/amat/`) reproduces Stuckner et al. 2022 using NASA's
+released **MicroNet v1.0** encoder weights. NASA's `create_segmentation_model`
+loads weights without a version and defaults to **v1.1** for `resnet50/micronet`,
+so `src/amat/models/` pins **v1.0** explicitly — never v1.1.
+
+### Reproduction environment (CUDA host)
+
+The reproduction stack pins torch 1.10.1 / smp 0.2.1 to match NASA's frozen
+environment, so v1.0 weights load without state-dict drift. These wheels target
+CUDA Linux + CPython 3.8–3.10 and are **not** expected to install on Python 3.12 /
+Apple Silicon:
+
+```bash
+python -m venv .venv-repro && source .venv-repro/bin/activate
+pip install -r requirements.txt
+```
+
+### Apple Silicon (MPS) — local training and iteration
+
+To train/iterate locally on an Apple Silicon Mac (Metal / MPS), use the modern
+stack in `requirements-apple.txt` (torch 2.x + modern `segmentation_models_pytorch`).
+`amat.models.create_segmentation_model` builds via smp directly and loads the v1.0
+encoder weights itself, so NASA's `pmm` (and its torch-1.10 pins) is **not** needed
+for build / forward / smoke training:
+
+```bash
+uv venv --python 3.12 .venv && source .venv/bin/activate
+uv pip install -r requirements-apple.txt
+python scripts/smoke_test.py --config configs/experiments/super1_smoke.yaml --build --device auto
+```
+
+`scripts/smoke_test.py` and `amat.device.resolve_device()` auto-select
+`cuda → mps → cpu` and enable `PYTORCH_ENABLE_MPS_FALLBACK` for the handful of ops
+not yet implemented on MPS. Verified on Apple Silicon (torch 2.x / smp 0.5.x): the
+v1.0 weights for `resnet50` and `se_resnext50_32x4d` load cleanly and a forward pass
+runs on `mps`.
+
+> Caveat: MPS uses a different torch/smp than the paper-pinned env, so it is for
+> **development and iteration**. Bit-exact paper numbers still come from the CUDA
+> host with `requirements.txt` (issue #16).
+
+### Smoke test (Sprint 0)
+
+The smoke test runs every check the environment allows (config, data pairing,
+pinned v1.0 weight URL, and — on a torch host — model build + forward pass):
+
+```bash
+# torch-free checks anywhere (config, data, weight URL pinning):
+python scripts/smoke_test.py --config configs/experiments/super1_smoke.yaml --check-url
+
+# full end-to-end on the CUDA reproduction host:
+python scripts/smoke_test.py --config configs/experiments/ebc1_smoke.yaml --build --check-url
+```
+
+Record notebook-vs-reproduction metrics in [paper/notebook_baseline.md](paper/notebook_baseline.md).
+
+### Reproduction tests
+
+```bash
+pytest tests/test_repro_weights.py tests/test_repro_config.py tests/test_repro_datasets.py -q
+```
 
 ## Sprints
 
