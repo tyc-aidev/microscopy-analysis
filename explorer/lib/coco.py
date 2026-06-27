@@ -65,7 +65,29 @@ def instance_seg_root(data_root: Path) -> Path:
 
 def is_instance_data_populated(data_root: Path) -> bool:
     root = instance_seg_root(data_root)
-    return (root / "annotations" / "train.json").is_file()
+    annotations = root / "annotations"
+    return (annotations / "train.json").is_file() or (annotations / "validation.json").is_file()
+
+
+def _split_has_images(instance_root: Path, split: str) -> bool:
+    split_dir = instance_root / split
+    if not split_dir.is_dir():
+        return False
+    return any(p.is_file() for p in split_dir.iterdir())
+
+
+def available_instance_splits(instance_root: Path, splits: list[str]) -> list[str]:
+    """Splits whose annotation file and image directory are both present on disk.
+
+    The trimmed Cloud archive ships annotations for all splits but only the
+    ``validation`` images, so the UI must not offer a split with no tiles.
+    """
+    available: list[str] = []
+    for split in splits:
+        annotation = annotation_json_path(instance_root, split)
+        if annotation.is_file() and _split_has_images(instance_root, split):
+            available.append(split)
+    return available
 
 
 def annotation_json_path(instance_root: Path, split: str) -> Path:
