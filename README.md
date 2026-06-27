@@ -130,20 +130,22 @@ Both archives are provisioned in the bucket
 [#22](https://github.com/tyc-aidev/microscopy-analysis/issues/22)):
 
 ```
-https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst   # ~33 MB  (Cloud default)
-https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst     # ~169 MB (all 7 benchmarks)
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst     # ~169 MB (all 7 benchmarks — default)
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst   # ~33 MB  (trimmed, disk-constrained)
 ```
 
-The **sample** is the recommended Streamlit Cloud default: it keeps the cold-start
-download small and stays well under the ephemeral-disk budget. The **full** archive
-adds EBC1–3 and the instance-seg train split, but extracts to ~483 MB and peaks
-near ~660 MB transiently during download+extract — opt into it only where `/tmp`
-has the headroom (override the target with `REMOTE_DATA_ROOT`).
+The app **defaults to the full archive** ([`DEFAULT_ARCHIVE_URL`](explorer/lib/remote_data.py)),
+so a fresh deploy serves all 7 benchmarks with no secret configured. The full
+archive extracts to ~483 MB and peaks near ~660 MB transiently during
+download+extract; this fits Streamlit Community Cloud's ephemeral `/tmp`
+([#25](https://github.com/tyc-aidev/microscopy-analysis/issues/25)). On a
+disk-constrained host, pin the trimmed **sample** instead (see below).
 
-### 3. Configure Streamlit secrets
+### 3. Configure Streamlit secrets (optional)
 
-In the app's **Settings → Secrets**, set the public archive URL (point at
-`amat-data-full.tar.zst` instead to browse all 7 benchmarks where disk allows):
+No secret is required — the app fetches the full archive by default. To pin a
+different source (e.g. the trimmed sample on a constrained host), set the public
+archive URL in the app's **Settings → Secrets**:
 
 ```toml
 DATA_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst"
