@@ -17,6 +17,7 @@ import streamlit as st
 
 from explorer.lib.catalog import load_catalog
 from explorer.lib.coco import (
+    available_instance_splits,
     bbox_area_histogram,
     instance_seg_root,
     is_instance_data_populated,
@@ -42,9 +43,17 @@ if not is_instance_data_populated(data_root):
     st.warning("Instance segmentation data not found. Run `./scripts/download_data.sh` from the repo root.")
     st.stop()
 
+splits = available_instance_splits(instance_root, catalog["splits"])
+if not splits:
+    st.warning("No instance-segmentation tiles found for the configured splits.")
+    st.stop()
+if splits != catalog["splits"]:
+    missing = [s for s in catalog["splits"] if s not in splits]
+    st.info(f"Showing splits with images present: {', '.join(splits)} (missing tiles: {', '.join(missing)}).")
+
 with st.sidebar:
     st.header("Filters")
-    split = st.selectbox("Split", catalog["splits"])
+    split = st.selectbox("Split", splits)
     index = load_coco_split_index(instance_root, split)
     summary = split_summary(index)
 

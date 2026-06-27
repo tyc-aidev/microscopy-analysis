@@ -9,7 +9,9 @@ import pytest
 from PIL import Image
 
 from explorer.lib.coco import (
+    available_instance_splits,
     bbox_area_histogram,
+    is_instance_data_populated,
     load_coco_split,
     render_annotations,
     resolve_image_path,
@@ -97,6 +99,34 @@ def test_render_annotations(coco_fixture: Path) -> None:
     rendered = render_annotations(image, anns, show_bbox=True, show_mask=True)
     assert rendered.mode == "RGBA"
     assert rendered.size == image.size
+
+
+def _write_coco(annot_path: Path, file_name: str) -> None:
+    payload = {
+        "images": [{"id": 1, "file_name": file_name, "width": 64, "height": 64}],
+        "annotations": [],
+        "categories": [{"id": 0, "name": "melt pool"}],
+    }
+    annot_path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_available_instance_splits_drops_split_without_images(tmp_path: Path) -> None:
+    """Mirrors the trimmed Cloud archive: annotations for all splits, val images only."""
+    instance_root = tmp_path / "instance_segmentation"
+    annot_dir = instance_root / "annotations"
+    val_dir = instance_root / "validation"
+    annot_dir.mkdir(parents=True)
+    val_dir.mkdir(parents=True)
+    _write_coco(annot_dir / "train.json", "./data/train/tile_a.png")
+    _write_coco(annot_dir / "validation.json", "./data/validation/tile_v.png")
+    Image.new("RGB", (8, 8)).save(val_dir / "tile_v.png")
+
+    assert is_instance_data_populated(tmp_path)
+    assert available_instance_splits(instance_root, ["train", "validation"]) == ["validation"]
+
+
+def test_available_instance_splits_all_present(coco_fixture: Path) -> None:
+    assert available_instance_splits(coco_fixture, ["train", "validation"]) == ["train"]
 
 
 def test_list_example_items(examples_fixture: Path) -> None:
