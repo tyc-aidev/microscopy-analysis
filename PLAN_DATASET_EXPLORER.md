@@ -91,7 +91,7 @@ flowchart LR
 ## Proposed file layout
 
 ```
-amat/
+microscopy-analysis/
 ├── PLAN_DATASET_EXPLORER.md          # this plan
 ├── explorer/
 │   ├── app.py                        # Streamlit entry point

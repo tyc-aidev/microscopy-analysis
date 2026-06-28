@@ -2,7 +2,7 @@
 #
 # The paper-pinned requirements.txt (torch 1.10.1) predates the MPS backend and
 # has no arm64 wheels, so local Metal training uses a modern torch + modern smp.
-# Our amat.models.create_segmentation_model builds via segmentation_models_pytorch
+# Our microscopy_analysis.models.create_segmentation_model builds via segmentation_models_pytorch
 # directly and loads the v1.0 encoder weights itself, so NASA's pmm (and its old
 # pins) is NOT required for build / forward / smoke training here.
 #

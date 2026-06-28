@@ -31,10 +31,10 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
-from amat.config import ExperimentConfig, load_experiment_config  # noqa: E402
-from amat.data import discover_pairs, split_counts  # noqa: E402
-from amat.device import resolve_device  # noqa: E402
-from amat.models import create_segmentation_model, micronet_weight_url  # noqa: E402
+from microscopy_analysis.config import ExperimentConfig, load_experiment_config  # noqa: E402
+from microscopy_analysis.data import discover_pairs, split_counts  # noqa: E402
+from microscopy_analysis.device import resolve_device  # noqa: E402
+from microscopy_analysis.models import create_segmentation_model, micronet_weight_url  # noqa: E402
 
 PASS, SKIP, FAIL = "PASS", "SKIP", "FAIL"
 

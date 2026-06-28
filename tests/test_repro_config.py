@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from amat.config import load_experiment_config
+from microscopy_analysis.config import load_experiment_config
 
 CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs" / "experiments"
 

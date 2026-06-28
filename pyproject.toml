@@ -11,4 +11,4 @@ dependencies = ["PyYAML>=6.0"]
 
 [tool.setuptools.packages.find]
 where = [".", "src"]
-include = ["explorer*", "amat*"]
+include = ["explorer*", "microscopy_analysis*"]

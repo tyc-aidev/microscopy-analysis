@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from amat.models import create_segmentation_model
+from microscopy_analysis.models import create_segmentation_model
 
 
 def test_rejects_unknown_pretraining():

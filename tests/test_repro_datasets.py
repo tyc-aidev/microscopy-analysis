@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from amat.data import discover_pairs, split_counts
+from microscopy_analysis.data import discover_pairs, split_counts
 
 
 def test_super_pairs_via_mask_suffix(benchmark_fixture: Path):

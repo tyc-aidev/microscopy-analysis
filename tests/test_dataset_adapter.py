@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from amat.data.dataset_adapter import decode_ebc_mask, decode_super_mask, list_sample_pairs
+from microscopy_analysis.data.dataset_adapter import decode_ebc_mask, decode_super_mask, list_sample_pairs
 
 
 def _make_super_fixture(tmp_path: Path) -> Path:
