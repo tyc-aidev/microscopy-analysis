@@ -50,7 +50,7 @@ st.markdown(
     f"License: **{catalog['license']}**. "
     f"[Paper]({catalog['paper_url']}) · "
     f"[NASA repo]({catalog['source_repo']}) · "
-    "[Reproduction plan](../PLAN.md)"
+    "[Reproduction plan](https://github.com/tyc-aidev/microscopy-analysis/blob/main/PLAN.md)"
 )
 
 data_root = get_data_root()
