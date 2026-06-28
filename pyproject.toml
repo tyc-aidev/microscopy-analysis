@@ -7,6 +7,7 @@ name = "microscopy-analysis"
 version = "0.1.0"
 description = "Microscopy dataset explorer and reproduction tooling"
 requires-python = ">=3.12"
+dependencies = ["PyYAML>=6.0"]
 
 [tool.setuptools.packages.find]
 where = [".", "src"]

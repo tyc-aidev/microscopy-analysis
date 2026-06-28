@@ -6,6 +6,7 @@ Reproduction of [Microstructure segmentation with deep learning encoders pre-tra
 
 - **Dataset Explorer** — Streamlit app to browse NASA public datasets before training ([#8](https://github.com/tyc-aidev/microscopy-analysis/issues/8), merged in [#9](https://github.com/tyc-aidev/microscopy-analysis/pull/9)).
 - **Sprint 0** — reproduction foundation and smoke test ([#1](https://github.com/tyc-aidev/microscopy-analysis/issues/1)): MicroNet **v1.0** weight pinning, model factory, smoke-test harness.
+- **Sprint 1 scaffold** — config-driven training entrypoint with dataset adapter and two-phase trainer skeleton ([#2](https://github.com/tyc-aidev/microscopy-analysis/issues/2)).
 
 See [PLAN.md](PLAN.md) for the full reproduction plan and sprint breakdown. Explorer design: [PLAN_DATASET_EXPLORER.md](PLAN_DATASET_EXPLORER.md).
 
@@ -240,6 +241,16 @@ pytest tests/test_repro_weights.py tests/test_repro_config.py tests/test_repro_d
 | 4 | Architecture and encoder sweep | [#5](https://github.com/tyc-aidev/microscopy-analysis/issues/5) |
 | 5 | Validation and reproduction report | [#6](https://github.com/tyc-aidev/microscopy-analysis/issues/6) |
 | 6 | Instance segmentation (optional) | [#7](https://github.com/tyc-aidev/microscopy-analysis/issues/7) |
+
+## Sprint 1 CLI (scaffold)
+
+Run the baseline config:
+
+```bash
+python scripts/train.py --config configs/experiments/super1_baseline.yaml
+```
+
+Current scaffold writes `metrics.json`, `checkpoint.pth.tar`, and `run_summary.json` under `results/<run_name>/`.
 
 ## License
 
