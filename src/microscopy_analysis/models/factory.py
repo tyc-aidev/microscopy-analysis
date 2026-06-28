@@ -2,7 +2,7 @@
 
 Mirrors NASA's ``create_segmentation_model`` (build an ``smp`` model, then load
 the pretrained encoder weights) but resolves MicroNet URLs through
-:mod:`amat.models.weights`, which forces ``version=1.0`` — NASA's own helper
+:mod:`microscopy_analysis.models.weights`, which forces ``version=1.0`` — NASA's own helper
 defaults to v1.1 for ``resnet50/micronet`` (the PLAN.md reproduction pitfall).
 
 Argument validation runs before the lazy torch/smp import so config mistakes are

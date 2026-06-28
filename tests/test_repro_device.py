@@ -8,7 +8,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from amat.device import enable_mps_fallback, resolve_device  # noqa: E402
+from microscopy_analysis.device import enable_mps_fallback, resolve_device  # noqa: E402
 
 
 def test_cpu_is_always_resolvable():

@@ -11,9 +11,9 @@ from pathlib import Path
 
 import numpy as np
 
-from amat.data.dataset_adapter import list_sample_pairs
-from amat.models import create_segmentation_model
-from amat.train.config import TrainConfig
+from microscopy_analysis.data.dataset_adapter import list_sample_pairs
+from microscopy_analysis.models import create_segmentation_model
+from microscopy_analysis.train.config import TrainConfig
 
 
 @dataclass(frozen=True)

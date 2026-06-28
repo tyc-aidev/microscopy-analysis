@@ -119,13 +119,13 @@ Match the official examples before deviating:
 ## Proposed project structure
 
 ```
-amat/
+microscopy-analysis/
 ├── pyproject.toml / requirements.txt   # pin torch==1.10.1, smp==0.2.1 from NASA frozen env
 ├── configs/
 │   ├── datasets/                       # super1.yaml, ebc1.yaml, ...
 │   ├── experiments/                    # baseline, low_data, sweep
 │   └── cloud/                          # job templates (RunPod, Lambda, GCP)
-├── src/amat/
+├── src/microscopy_analysis/
 │   ├── data/                           # DatasetAdapter (Super vs EBC mask logic)
 │   ├── models/                         # wrapper around pmm.create_segmentation_model
 │   ├── train/                          # two-phase trainer, early stopping

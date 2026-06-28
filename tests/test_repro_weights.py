@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from amat.models.weights import S3_BASE, micronet_weight_url, normalize_version
+from microscopy_analysis.models.weights import S3_BASE, micronet_weight_url, normalize_version
 
 
 def test_resnet50_micronet_pins_v1_0_by_default():

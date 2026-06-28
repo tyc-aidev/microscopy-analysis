@@ -8,12 +8,12 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from amat.train.config import load_train_config
-from amat.train.trainer import run_training
+from microscopy_analysis.train.config import load_train_config
+from microscopy_analysis.train.trainer import run_training
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run AMAT segmentation training")
+    parser = argparse.ArgumentParser(description="Run microscopy-analysis segmentation training")
     parser.add_argument("--config", type=Path, required=True, help="Path to experiment YAML config")
     return parser.parse_args()
 

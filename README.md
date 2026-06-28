@@ -167,10 +167,10 @@ download entirely. Set the app entry point to `explorer/app.py`.
 
 ## MicroNet reproduction (Sprint 0+)
 
-The PyTorch reproduction (`src/amat/`) reproduces Stuckner et al. 2022 using NASA's
+The PyTorch reproduction (`src/microscopy_analysis/`) reproduces Stuckner et al. 2022 using NASA's
 released **MicroNet v1.0** encoder weights. NASA's `create_segmentation_model`
 loads weights without a version and defaults to **v1.1** for `resnet50/micronet`,
-so `src/amat/models/` pins **v1.0** explicitly — never v1.1.
+so `src/microscopy_analysis/models/` pins **v1.0** explicitly — never v1.1.
 
 ### Reproduction environment (CUDA host)
 
@@ -188,7 +188,7 @@ pip install -r requirements.txt
 
 To train/iterate locally on an Apple Silicon Mac (Metal / MPS), use the modern
 stack in `requirements-apple.txt` (torch 2.x + modern `segmentation_models_pytorch`).
-`amat.models.create_segmentation_model` builds via smp directly and loads the v1.0
+`microscopy_analysis.models.create_segmentation_model` builds via smp directly and loads the v1.0
 encoder weights itself, so NASA's `pmm` (and its torch-1.10 pins) is **not** needed
 for build / forward / smoke training:
 
@@ -198,7 +198,7 @@ uv pip install -r requirements-apple.txt
 python scripts/smoke_test.py --config configs/experiments/super1_smoke.yaml --build --device auto
 ```
 
-`scripts/smoke_test.py` and `amat.device.resolve_device()` auto-select
+`scripts/smoke_test.py` and `microscopy_analysis.device.resolve_device()` auto-select
 `cuda → mps → cpu` and enable `PYTORCH_ENABLE_MPS_FALLBACK` for the handful of ops
 not yet implemented on MPS. Verified on Apple Silicon (torch 2.x / smp 0.5.x): the
 v1.0 weights for `resnet50` and `se_resnext50_32x4d` load cleanly and a forward pass

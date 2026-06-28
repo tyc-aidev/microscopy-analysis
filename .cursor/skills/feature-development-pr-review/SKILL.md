@@ -30,7 +30,7 @@ When working on Sprints 0–6, follow [PLAN.md](../../../PLAN.md):
   - **EBC:** same filename in image/annot folders; grayscale `{0: bg, 1: oxide, 2: crack}`; binary task uses `{oxide: [1]}`
 - **Models:** `create_segmentation_model()` with architectures UNet, UNet++, DeepLabV3+; pretraining regimes `random`, `imagenet`, `micronet`, `image-micronet`.
 - **Training defaults** (match NASA notebooks before deviating): Adam `lr=2e-4` → phase 2 at `1e-5`; early stop `patience=30` on val IoU; `DiceBCELoss(weight=0.7)`; metric IoU@0.5; batch size 6; ImageNet normalization even for MicroNet encoders; patch inference 512/stride 256.
-- **Project layout:** `src/amat/{data,models,train,eval,orchestration}/`, `configs/{datasets,experiments,cloud}/`, `scripts/{train,evaluate,run_matrix}.py`, `results/` (gitignored), `paper/target_metrics.csv`.
+- **Project layout:** `src/microscopy_analysis/{data,models,train,eval,orchestration}/`, `configs/{datasets,experiments,cloud}/`, `scripts/{train,evaluate,run_matrix}.py`, `results/` (gitignored), `paper/target_metrics.csv`.
 - **Dependency strategy:** `pip install git+https://github.com/nasa/pretrained-microscopy-models` + thin local wrapper; pin torch/smp to NASA [requirements_frozen.txt](https://github.com/nasa/pretrained-microscopy-models/blob/main/requirements_frozen.txt) in `requirements.txt` when added.
 
 **Sprint exit criteria to verify in PR testing:**
@@ -54,7 +54,7 @@ When working on Sprints 0–6, follow [PLAN.md](../../../PLAN.md):
 ```bash
 git fetch origin main
 BRANCH=feature/short-descriptive-name
-WORKTREE=../amat-${BRANCH//\//-}   # e.g. ../amat-feature-dataset-explorer
+WORKTREE=../microscopy-analysis-${BRANCH//\//-}   # e.g. ../microscopy-analysis-feature-dataset-explorer
 git worktree add -b "$BRANCH" "$WORKTREE" origin/main
 cd "$WORKTREE"
 ```
@@ -89,8 +89,8 @@ For reproduction work, also ensure benchmark data is present (`scripts/download_
 
 - Implement in logical chunks. Create a todo list for multi-step work.
 - **Explorer:** `explorer/` (Streamlit app, pages, `lib/`), `explorer/datasets/catalog.json`
-- **Reproduction:** `src/amat/`, `configs/`, `scripts/train.py`, etc. per PLAN.md structure
-- Write or update tests for pure Python logic (`explorer/lib/`, `src/amat/data/`, etc.)
+- **Reproduction:** `src/microscopy_analysis/`, `configs/`, `scripts/train.py`, etc. per PLAN.md structure
+- Write or update tests for pure Python logic (`explorer/lib/`, `src/microscopy_analysis/data/`, etc.)
 
 ### Run tests and manual checks
 
@@ -198,6 +198,6 @@ When review defers work (v2, cloud orchestration, UI polish, full encoder sweep)
 
 - Prefer `gh pr create`, `gh pr view`, `gh pr comment`, and `gh api .../pulls/.../reviews` so the whole flow stays in the repo and terminal.
 - Branch naming: `feature/...`, `bugfix/...`, `refactor/...`.
-- Worktree naming: sibling directory `../amat-<branch-with-slashes-as-dashes>` keeps the main checkout on `main`.
+- Worktree naming: sibling directory `../microscopy-analysis-<branch-with-slashes-as-dashes>` keeps the main checkout on `main`.
 - Keep explorer deps (`requirements-explorer.txt`) separate from the PyTorch stack unless the PR genuinely needs both.
 - Reproduction PRs should reference the sprint issue and cite which exit criteria from PLAN.md were verified.

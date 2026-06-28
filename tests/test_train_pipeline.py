@@ -8,8 +8,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from amat.train.config import load_train_config
-from amat.train.trainer import run_training
+from microscopy_analysis.train.config import load_train_config
+from microscopy_analysis.train.trainer import run_training
 
 
 def _make_super_train_data(root: Path) -> None:
@@ -76,7 +76,7 @@ def test_run_training_writes_outputs(tmp_path: Path, monkeypatch) -> None:
     cfg = load_train_config(config_path)
 
     monkeypatch.setattr(
-        "amat.train.trainer.create_segmentation_model", lambda *args, **kwargs: object()
+        "microscopy_analysis.train.trainer.create_segmentation_model", lambda *args, **kwargs: object()
     )
     result = run_training(cfg)
 
