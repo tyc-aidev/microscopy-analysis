@@ -75,7 +75,9 @@ def test_run_training_writes_outputs(tmp_path: Path, monkeypatch) -> None:
     )
     cfg = load_train_config(config_path)
 
-    monkeypatch.setattr("amat.train.trainer.create_segmentation_model", lambda _cfg: object())
+    monkeypatch.setattr(
+        "amat.train.trainer.create_segmentation_model", lambda *args, **kwargs: object()
+    )
     result = run_training(cfg)
 
     metrics = json.loads(Path(result.metrics_path).read_text())

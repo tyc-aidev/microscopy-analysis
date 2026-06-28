@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from amat.data.dataset_adapter import list_sample_pairs
-from amat.models.factory import create_segmentation_model
+from amat.models import create_segmentation_model
 from amat.train.config import TrainConfig
 
 
@@ -61,7 +61,9 @@ def run_training(config: TrainConfig) -> TrainResult:
         "num_classes": config.num_classes,
     }
     # Instantiate early so missing deps/config fail before writing outputs.
-    _ = create_segmentation_model(model_cfg)
+    _ = create_segmentation_model(
+        config.architecture, config.encoder_name, config.pretraining, config.num_classes
+    )
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
     # Scaffold placeholder; named to avoid masquerading as a real torch checkpoint.
