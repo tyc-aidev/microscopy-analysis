@@ -21,11 +21,16 @@ import torch
 from torch.utils.data import DataLoader
 
 from microscopy_analysis.data.dataset_adapter import list_sample_pairs
-from microscopy_analysis.data.segmentation_dataset import SegmentationDataset, build_transforms
+from microscopy_analysis.data.segmentation_dataset import (
+    AugmentationConfig,
+    SegmentationDataset,
+    build_transforms,
+)
 from microscopy_analysis.device import enable_mps_fallback, resolve_device
 from microscopy_analysis.eval import DiceBCELoss, IoU
 from microscopy_analysis.models import create_segmentation_model
 from microscopy_analysis.train.config import TrainConfig
+from microscopy_analysis.train.logging import build_logger
 
 
 @dataclass(frozen=True)
@@ -49,6 +54,8 @@ class TrainResult:
     best_mean_iou: float = 0.0
     best_per_class_iou: tuple[float, ...] = field(default_factory=tuple)
     summary_path: str = ""
+    best_checkpoint_path: str = ""
+    resumed_from_epoch: int = 0
 
 
 def _git_sha() -> str:
@@ -71,7 +78,8 @@ def _seed_everything(seed: int) -> None:
 
 
 def _make_loader(config: TrainConfig, split: str, *, train: bool) -> DataLoader:
-    transform = build_transforms(config.dataset_family, train=train, crop_size=config.crop_size)
+    aug = AugmentationConfig.from_dict(config.augmentation, crop_size=config.crop_size)
+    transform = build_transforms(config.dataset_family, train=train, crop_size=config.crop_size, aug=aug)
     dataset = SegmentationDataset(
         config.data_root / config.dataset_name, split, config.dataset_family, transform
     )
@@ -131,51 +139,83 @@ def run_training(config: TrainConfig, *, device_preference: str = "auto") -> Tra
     metric = IoU(config.num_classes, threshold=config.metric_threshold)
 
     config.output_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint_path = config.output_dir / "checkpoint.pth"
+    checkpoint_path = config.output_dir / "checkpoint.pth"  # latest, for resume
+    best_checkpoint_path = config.output_dir / "model_best.pth"  # best val IoU, final model
     metrics_path = config.output_dir / "metrics.json"
     summary_path = config.output_dir / "run_summary.json"
+
+    logger = build_logger(config.log_backend, config.run_name, config.log_project)
+    logger.log_params({**asdict(config), "git_sha": _git_sha(), "device": str(device)})
 
     epoch_records: list[dict] = []
     best = {"score": -1.0, "mean_iou": 0.0, "per_class": [], "epoch": 0}
     global_epoch = 0
 
-    def save_checkpoint(epoch: int, optimizer, phase: int) -> None:
+    def save_latest(epoch: int, optimizer, phase: int, phase_epoch: int) -> None:
+        """Latest-state checkpoint (every epoch) so a preempted run can resume."""
         torch.save(
             {
                 "model_state": model.state_dict(),
                 "optimizer_state": optimizer.state_dict(),
                 "epoch": epoch,
                 "phase": phase,
+                "phase_epoch": phase_epoch,
                 "best_score": best["score"],
                 "best_mean_iou": best["mean_iou"],
+                "best_per_class": best["per_class"],
+                "best_epoch": best["epoch"],
                 "config": {"run_name": config.run_name, "num_classes": config.num_classes},
             },
             checkpoint_path,
         )
 
-    def run_phase(phase: int, max_epochs: int, lr: float) -> None:
+    def save_best() -> None:
+        torch.save({"model_state": model.state_dict(), "score": best["score"]}, best_checkpoint_path)
+
+    # Resume from a prior latest checkpoint (#11): restore weights, optimizer, and bests.
+    resume_phase, resume_phase_epoch, resume_opt_state, resumed_from = 1, 0, None, 0
+    if config.resume and checkpoint_path.exists():
+        ckpt = torch.load(checkpoint_path, map_location=device)
+        model.load_state_dict(ckpt["model_state"])
+        global_epoch = int(ckpt.get("epoch", 0))
+        resume_phase = int(ckpt.get("phase", 1))
+        resume_phase_epoch = int(ckpt.get("phase_epoch", 0))
+        resume_opt_state = ckpt.get("optimizer_state")
+        best.update(
+            score=float(ckpt.get("best_score", -1.0)),
+            mean_iou=float(ckpt.get("best_mean_iou", 0.0)),
+            per_class=list(ckpt.get("best_per_class", [])),
+            epoch=int(ckpt.get("best_epoch", 0)),
+        )
+        resumed_from = global_epoch
+        if metrics_path.exists():
+            epoch_records = json.loads(metrics_path.read_text())
+
+    def run_phase(phase: int, max_epochs: int, lr: float, *, start_epoch: int = 0, opt_state=None) -> None:
         nonlocal global_epoch
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+        if opt_state is not None:
+            optimizer.load_state_dict(opt_state)
         no_improve = 0
-        for _ in range(max_epochs):
+        for phase_epoch in range(start_epoch, max_epochs):
             global_epoch += 1
             train_loss = _run_epoch(model, train_loader, loss_fn, device, optimizer=optimizer)
             val_loss = _run_epoch(model, val_loader, loss_fn, device, metric=metric)
             per_class = [round(v, 6) for v in metric.per_class().tolist()]
             mean_iou, score = metric.mean(), metric.score()
-            epoch_records.append(
-                {
-                    "epoch": global_epoch,
-                    "phase": phase,
-                    "lr": lr,
-                    "train_loss": round(train_loss, 6),
-                    "val_loss": round(val_loss, 6),
-                    "val_iou_per_class": per_class,
-                    "val_mean_iou": round(mean_iou, 6),
-                    "val_score": round(score, 6),
-                }
-            )
+            record = {
+                "epoch": global_epoch,
+                "phase": phase,
+                "lr": lr,
+                "train_loss": round(train_loss, 6),
+                "val_loss": round(val_loss, 6),
+                "val_iou_per_class": per_class,
+                "val_mean_iou": round(mean_iou, 6),
+                "val_score": round(score, 6),
+            }
+            epoch_records.append(record)
             metrics_path.write_text(json.dumps(epoch_records, indent=2))
+            logger.log_epoch(record)
             print(
                 f"[phase {phase}] epoch {global_epoch} "
                 f"train_loss={train_loss:.4f} val_loss={val_loss:.4f} "
@@ -183,20 +223,27 @@ def run_training(config: TrainConfig, *, device_preference: str = "auto") -> Tra
             )
             if score > best["score"] + 1e-6:
                 best.update(score=score, mean_iou=mean_iou, per_class=per_class, epoch=global_epoch)
-                save_checkpoint(global_epoch, optimizer, phase)
+                save_best()
                 no_improve = 0
             else:
                 no_improve += 1
-                if no_improve >= config.patience:
-                    break
+            save_latest(global_epoch, optimizer, phase, phase_epoch + 1)
+            if no_improve >= config.patience:
+                break
 
-    run_phase(1, config.max_epochs_phase1, config.lr_phase1)
-    if checkpoint_path.exists():  # resume best phase-1 weights before fine-tuning
-        model.load_state_dict(torch.load(checkpoint_path, map_location=device)["model_state"])
-    run_phase(2, config.max_epochs_phase2, config.lr_phase2)
+    if resume_phase <= 1:
+        run_phase(1, config.max_epochs_phase1, config.lr_phase1,
+                  start_epoch=resume_phase_epoch if resume_phase == 1 else 0, opt_state=resume_opt_state)
+    if best_checkpoint_path.exists():  # fine-tune from best phase-1 weights
+        model.load_state_dict(torch.load(best_checkpoint_path, map_location=device)["model_state"])
+    run_phase(2, config.max_epochs_phase2, config.lr_phase2,
+              start_epoch=resume_phase_epoch if resume_phase == 2 else 0,
+              opt_state=resume_opt_state if resume_phase == 2 else None)
 
     if not checkpoint_path.exists():  # degenerate (e.g. zero epochs): still emit a real checkpoint
-        save_checkpoint(global_epoch, torch.optim.Adam(model.parameters(), lr=config.lr_phase2), phase=2)
+        save_latest(global_epoch, torch.optim.Adam(model.parameters(), lr=config.lr_phase2), 2, 0)
+    if not best_checkpoint_path.exists():
+        save_best()
 
     result = TrainResult(
         run_name=config.run_name,
@@ -217,6 +264,9 @@ def run_training(config: TrainConfig, *, device_preference: str = "auto") -> Tra
         best_mean_iou=round(float(best["mean_iou"]), 6),
         best_per_class_iou=tuple(best["per_class"]),
         summary_path=str(summary_path),
+        best_checkpoint_path=str(best_checkpoint_path),
+        resumed_from_epoch=resumed_from,
     )
     summary_path.write_text(json.dumps(asdict(result), indent=2))
+    logger.finish(asdict(result))
     return result

@@ -169,6 +169,30 @@ def test_run_training_binary_ebc_path(tmp_path: Path, monkeypatch) -> None:
     assert Path(result.checkpoint_path).exists()
 
 
+def test_resume_continues_from_latest_checkpoint(tmp_path: Path, monkeypatch) -> None:
+    _make_super_split(tmp_path, "train", n=4)
+    _make_super_split(tmp_path, "val", n=2)
+    monkeypatch.setattr(
+        "microscopy_analysis.train.trainer.create_segmentation_model",
+        lambda *a, **k: _TinyModel(num_classes=3),
+    )
+
+    # First run: 3 phase-1 epochs, no phase 2 — leaves a resumable checkpoint at epoch 3.
+    first = replace(_tiny_config(tmp_path), max_epochs_phase1=3, max_epochs_phase2=0)
+    r1 = run_training(first, device_preference="cpu")
+    assert r1.epochs_trained == 3
+    assert Path(r1.checkpoint_path).exists() and Path(r1.best_checkpoint_path).exists()
+
+    # Resume into the same run dir with a higher phase-1 cap: continues from epoch 3.
+    second = replace(first, max_epochs_phase1=5, resume=True)
+    r2 = run_training(second, device_preference="cpu")
+    assert r2.resumed_from_epoch == 3
+    assert r2.epochs_trained == 5
+    # metrics.json was appended to, not restarted.
+    records = json.loads(Path(r2.metrics_path).read_text())
+    assert [r["epoch"] for r in records] == [1, 2, 3, 4, 5]
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(not os.environ.get("RUN_SLOW"), reason="set RUN_SLOW=1 for the real-model run")
 def test_run_training_with_real_smp_model(tmp_path: Path) -> None:
