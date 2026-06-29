@@ -1,0 +1,41 @@
+# MicroNet paper-reproduction dependencies — CUDA host, cu113 index baked in.
+#
+# Convenience wrapper over requirements.txt for a CUDA Linux GPU host: it pins the
+# CUDA 11.3 (cu113) torch/torchvision wheels explicitly so a plain
+#   pip install -r requirements-cuda.txt
+# pulls GPU builds without needing an extra --extra-index-url on the command line.
+#
+# Target: NVIDIA T4 (sm_75) or other Turing/Volta/Pascal GPU + CPython 3.8-3.9.
+# cu113 wheels do NOT support Ada/Hopper (L4/L40/H100, sm_89/sm_90 need CUDA 11.8+).
+# torch 1.10.1 wheels are cp36-cp39 only — there is no cp310+ build.
+#
+# Everything below torch/torchvision mirrors requirements.txt exactly; keep the
+# two in sync. See configs/cloud/gcp_t4_repro.md for the full provisioning runbook.
+
+# cu113 wheels are served from the torch_stable find-links index:
+-f https://download.pytorch.org/whl/cu113/torch_stable.html
+
+torch==1.10.1+cu113
+torchvision==0.11.2+cu113
+
+segmentation-models-pytorch==0.2.1
+timm==0.4.12
+pretrainedmodels==0.7.4
+efficientnet-pytorch==0.6.3
+albumentations==1.1.0
+numpy==1.22.0
+Pillow==9.0.0
+opencv-python-headless==4.5.5.62
+scikit-image==0.19.1
+scikit-learn==1.0.2
+scipy==1.7.3
+tifffile==2021.11.2
+matplotlib==3.5.1
+PyYAML==6.0
+tqdm==4.62.3
+
+# NASA codebase (create_segmentation_model, training loop, losses, weight URLs).
+# Unpinned, like requirements.txt: resolves to the pmm default branch HEAD at
+# install time. Record the resolved commit on the host (see runbook) — at the time
+# this file was written, remote HEAD was 9b7c4abc1321e81eca7a68d548e5371676fa74fa.
+pretrained-microscopy-models @ git+https://github.com/nasa/pretrained-microscopy-models
