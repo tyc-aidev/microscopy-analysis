@@ -6,8 +6,6 @@ name: Reproduction tests (torch-free)
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [repro/sprint0-cuda-baseline]
   workflow_dispatch:
 
 jobs:
