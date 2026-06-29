@@ -8,7 +8,11 @@ import numpy as np
 import torch
 from PIL import Image
 
-from microscopy_analysis.data.segmentation_dataset import SegmentationDataset, build_transforms
+from microscopy_analysis.data.segmentation_dataset import (
+    AugmentationConfig,
+    SegmentationDataset,
+    build_transforms,
+)
 
 
 def _make_super(root: Path, n: int = 2, size: int = 32) -> Path:
@@ -69,3 +73,24 @@ def test_eval_transform_keeps_full_image(tmp_path: Path) -> None:
     image, mask = ds[0]
     assert image.shape == (3, 48, 48)
     assert mask.shape == (48, 48)
+
+
+def test_augmentation_config_disables_ops() -> None:
+    # Every probability at 0 should leave only normalize + ToTensor in the pipeline.
+    off = AugmentationConfig(flip_p=0, vflip_p=0, rotate90_p=0, clahe_p=0, gauss_noise_p=0)
+    assert len(build_transforms("super", train=True, aug=off).transforms) == 2
+    # Defaults keep the full Super profile (5 aug ops + normalize + ToTensor).
+    assert len(build_transforms("super", train=True).transforms) == 7
+
+
+def test_augmentation_from_dict_overrides_crop_and_ignores_unknown() -> None:
+    aug = AugmentationConfig.from_dict({"crop_size": 256, "clahe_p": 0.9, "bogus": 1}, crop_size=512)
+    assert aug.crop_size == 256 and aug.clahe_p == 0.9
+
+
+def test_ebc_crop_size_follows_augmentation_config(tmp_path: Path) -> None:
+    dataset_dir = _make_ebc(tmp_path, size=600)
+    aug = AugmentationConfig(crop_size=256)
+    ds = SegmentationDataset(dataset_dir, "train", "ebc", build_transforms("ebc", train=True, aug=aug))
+    image, mask = ds[0]
+    assert image.shape == (3, 256, 256) and mask.shape == (256, 256)
