@@ -193,6 +193,35 @@ def test_resume_continues_from_latest_checkpoint(tmp_path: Path, monkeypatch) ->
     assert [r["epoch"] for r in records] == [1, 2, 3, 4, 5]
 
 
+def test_resume_into_phase2_keeps_latest_weights(tmp_path: Path, monkeypatch) -> None:
+    _make_super_split(tmp_path, "train", n=4)
+    _make_super_split(tmp_path, "val", n=2)
+    monkeypatch.setattr(
+        "microscopy_analysis.train.trainer.create_segmentation_model",
+        lambda *a, **k: _TinyModel(num_classes=3),
+    )
+
+    # First run completes phase 1 and one phase-2 epoch, leaving the checkpoint in phase 2.
+    first = replace(_tiny_config(tmp_path), max_epochs_phase1=2, max_epochs_phase2=1)
+    r1 = run_training(first, device_preference="cpu")
+    ckpt1 = torch.load(r1.checkpoint_path, map_location="cpu")
+    assert ckpt1["phase"] == 2
+    weights_before = {k: v.clone() for k, v in ckpt1["model_state"].items()}
+
+    # Resume into phase 2 with a higher phase-2 cap. The resumed (latest) weights must be
+    # the starting point — NOT silently reset to model_best — and training must continue.
+    second = replace(first, max_epochs_phase2=3, resume=True)
+    r2 = run_training(second, device_preference="cpu")
+    assert r2.resumed_from_epoch == 3
+    assert r2.epochs_trained == 5  # 2 (phase1) + 1 (prior phase2) + 2 (resumed phase2)
+    records = json.loads(Path(r2.metrics_path).read_text())
+    assert [r["epoch"] for r in records] == [1, 2, 3, 4, 5]
+    assert [r["phase"] for r in records][-1] == 2
+    # The first resumed epoch trained from the latest weights, so params moved from there.
+    resumed = torch.load(r2.checkpoint_path, map_location="cpu")["model_state"]
+    assert any(not torch.equal(resumed[k], weights_before[k]) for k in weights_before)
+
+
 @pytest.mark.slow
 @pytest.mark.skipif(not os.environ.get("RUN_SLOW"), reason="set RUN_SLOW=1 for the real-model run")
 def test_run_training_with_real_smp_model(tmp_path: Path) -> None:

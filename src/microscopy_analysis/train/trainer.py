@@ -145,7 +145,9 @@ def run_training(config: TrainConfig, *, device_preference: str = "auto") -> Tra
     summary_path = config.output_dir / "run_summary.json"
 
     logger = build_logger(config.log_backend, config.run_name, config.log_project)
-    logger.log_params({**asdict(config), "git_sha": _git_sha(), "device": str(device)})
+    # Stringify non-scalars (e.g. Path data_root/output_dir) so every backend accepts them.
+    params = {k: (v if isinstance(v, (int, float, bool, str, type(None))) else str(v)) for k, v in asdict(config).items()}
+    logger.log_params({**params, "git_sha": _git_sha(), "device": str(device)})
 
     epoch_records: list[dict] = []
     best = {"score": -1.0, "mean_iou": 0.0, "per_class": [], "epoch": 0}
@@ -196,7 +198,7 @@ def run_training(config: TrainConfig, *, device_preference: str = "auto") -> Tra
         optimizer = torch.optim.Adam(model.parameters(), lr=lr)
         if opt_state is not None:
             optimizer.load_state_dict(opt_state)
-        no_improve = 0
+        no_improve = 0  # patience counter restarts on resume (a preemption gets a fresh window)
         for phase_epoch in range(start_epoch, max_epochs):
             global_epoch += 1
             train_loss = _run_epoch(model, train_loader, loss_fn, device, optimizer=optimizer)
@@ -234,8 +236,11 @@ def run_training(config: TrainConfig, *, device_preference: str = "auto") -> Tra
     if resume_phase <= 1:
         run_phase(1, config.max_epochs_phase1, config.lr_phase1,
                   start_epoch=resume_phase_epoch if resume_phase == 1 else 0, opt_state=resume_opt_state)
-    if best_checkpoint_path.exists():  # fine-tune from best phase-1 weights
-        model.load_state_dict(torch.load(best_checkpoint_path, map_location=device)["model_state"])
+        # Normal phase-1 -> phase-2 transition: fine-tune from the best phase-1 weights.
+        # Skipped when resuming directly into phase 2, where the latest checkpoint
+        # already restored the in-progress phase-2 weights (don't clobber them).
+        if best_checkpoint_path.exists():
+            model.load_state_dict(torch.load(best_checkpoint_path, map_location=device)["model_state"])
     run_phase(2, config.max_epochs_phase2, config.lr_phase2,
               start_epoch=resume_phase_epoch if resume_phase == 2 else 0,
               opt_state=resume_opt_state if resume_phase == 2 else None)
