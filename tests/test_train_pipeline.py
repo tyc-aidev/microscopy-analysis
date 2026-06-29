@@ -9,10 +9,12 @@ a slow/integration test.
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 from PIL import Image
 
@@ -165,3 +167,22 @@ def test_run_training_binary_ebc_path(tmp_path: Path, monkeypatch) -> None:
     assert result.best_score >= 0.99
     assert len(records[-1]["val_iou_per_class"]) == 2  # [background, foreground]
     assert Path(result.checkpoint_path).exists()
+
+
+@pytest.mark.slow
+@pytest.mark.skipif(not os.environ.get("RUN_SLOW"), reason="set RUN_SLOW=1 for the real-model run")
+def test_run_training_with_real_smp_model(tmp_path: Path) -> None:
+    """End-to-end through the real smp UnetPlusPlus (random init, no download)."""
+    _make_super_split(tmp_path, "train", n=2, size=64)
+    _make_super_split(tmp_path, "val", n=2, size=64)
+    cfg = replace(
+        _tiny_config(tmp_path),
+        pretraining="random",
+        max_epochs_phase1=1,
+        max_epochs_phase2=1,
+        lr_phase1=1e-3,
+    )
+    result = run_training(cfg, device_preference="auto")
+    assert Path(result.checkpoint_path).exists()
+    assert result.epochs_trained == 2
+    assert len(result.best_per_class_iou) == cfg.num_classes
