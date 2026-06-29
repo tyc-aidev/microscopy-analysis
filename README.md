@@ -176,13 +176,19 @@ so `src/microscopy_analysis/models/` pins **v1.0** explicitly — never v1.1.
 
 The reproduction stack pins torch 1.10.1 / smp 0.2.1 to match NASA's frozen
 environment, so v1.0 weights load without state-dict drift. These wheels target
-CUDA Linux + CPython 3.8–3.10 and are **not** expected to install on Python 3.12 /
-Apple Silicon:
+CUDA Linux + CPython 3.8–3.9 (torch 1.10.1 has no cp310+ wheels) and are **not**
+expected to install on Python 3.12 / Apple Silicon:
 
 ```bash
-python -m venv .venv-repro && source .venv-repro/bin/activate
-pip install -r requirements.txt
+python3.9 -m venv .venv-repro && source .venv-repro/bin/activate
+pip install -r requirements-cuda.txt   # cu113 wheels baked in; == requirements.txt + cu113 index
 ```
+
+For an end-to-end, copy-pasteable GCP provisioning runbook (NVIDIA T4 / cu113,
+data download, both smoke configs, the NASA-loop smoke train, and the baseline
+record for [#16](https://github.com/tyc-aidev/microscopy-analysis/issues/16)), see
+[`configs/cloud/gcp_t4_repro.md`](configs/cloud/gcp_t4_repro.md). Helper:
+`scripts/cloud_gcp_t4.sh {create,ssh,delete,status}`.
 
 ### Apple Silicon (MPS) — local training and iteration
 
