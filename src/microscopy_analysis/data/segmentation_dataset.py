@@ -11,7 +11,9 @@ ImageNet normalization is applied for every encoder (per the paper notebooks).
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import albumentations as A
 import numpy as np
@@ -26,30 +28,66 @@ IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
 
 
+@dataclass(frozen=True)
+class AugmentationConfig:
+    """YAML-overridable augmentation knobs; defaults reproduce the PLAN.md profiles.
+
+    Super = flip/rotate/CLAHE/noise; EBC = horizontal flip + random ``crop_size``
+    crop (center crop on val). Probabilities of ``0`` disable an op entirely.
+    """
+
+    crop_size: int = 512
+    flip_p: float = 0.5
+    vflip_p: float = 0.5
+    rotate90_p: float = 0.5
+    clahe_p: float = 0.3
+    gauss_noise_p: float = 0.3
+    extra: tuple[str, ...] = field(default_factory=tuple)  # reserved; kept for forward-compat
+
+    @classmethod
+    def from_dict(cls, raw: dict[str, Any] | None, *, crop_size: int = 512) -> AugmentationConfig:
+        raw = raw or {}
+        known = {f for f in cls.__dataclass_fields__ if f != "extra"}
+        kwargs = {k: v for k, v in raw.items() if k in known}
+        kwargs.setdefault("crop_size", crop_size)
+        return cls(**kwargs)
+
+
 def _normalize() -> list[A.BasicTransform]:
     return [A.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD), ToTensorV2()]
 
 
-def build_transforms(dataset_family: str, train: bool, crop_size: int = 512) -> A.Compose:
-    """Augmentation pipeline per PLAN.md: Super = flip/rotate/CLAHE/noise; EBC = flip + random crop."""
+def build_transforms(
+    dataset_family: str,
+    train: bool,
+    crop_size: int = 512,
+    aug: AugmentationConfig | None = None,
+) -> A.Compose:
+    """Augmentation pipeline per PLAN.md, overridable via :class:`AugmentationConfig`."""
+    aug = aug or AugmentationConfig(crop_size=crop_size)
+    crop = aug.crop_size
+
     if not train:
         if dataset_family == "ebc":
-            return A.Compose([A.PadIfNeeded(crop_size, crop_size), A.CenterCrop(crop_size, crop_size), *_normalize()])
+            return A.Compose([A.PadIfNeeded(crop, crop), A.CenterCrop(crop, crop), *_normalize()])
         return A.Compose(_normalize())
 
     if dataset_family == "super":
-        aug = [
-            A.HorizontalFlip(p=0.5),
-            A.VerticalFlip(p=0.5),
-            A.RandomRotate90(p=0.5),
-            A.CLAHE(p=0.3),
-            A.GaussNoise(p=0.3),
+        ops = [
+            (A.HorizontalFlip, aug.flip_p),
+            (A.VerticalFlip, aug.vflip_p),
+            (A.RandomRotate90, aug.rotate90_p),
+            (A.CLAHE, aug.clahe_p),
+            (A.GaussNoise, aug.gauss_noise_p),
         ]
+        steps = [op(p=p) for op, p in ops if p > 0]
     elif dataset_family == "ebc":
-        aug = [A.HorizontalFlip(p=0.5), A.PadIfNeeded(crop_size, crop_size), A.RandomCrop(crop_size, crop_size)]
+        steps = [A.PadIfNeeded(crop, crop), A.RandomCrop(crop, crop)]
+        if aug.flip_p > 0:
+            steps.insert(0, A.HorizontalFlip(p=aug.flip_p))
     else:
         raise ValueError(f"Unsupported dataset family: {dataset_family}")
-    return A.Compose([*aug, *_normalize()])
+    return A.Compose([*steps, *_normalize()])
 
 
 class SegmentationDataset(Dataset):

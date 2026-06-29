@@ -22,4 +22,19 @@ trainer:
   patience: 30
   max_epochs_phase1: 120
   max_epochs_phase2: 60
+  resume: false  # set true (or pass --resume) to continue from results/<run>/checkpoint.pth
+
+# Structured experiment logging (#13). none = fully offline (default).
+logging:
+  backend: none  # none | wandb | mlflow
+  # project: microscopy-analysis
+
+# Optional augmentation overrides (#12); omit to use the PLAN.md Super profile
+# (flip / vflip / rotate90 / CLAHE / GaussNoise). Probabilities of 0 disable an op.
+augmentation:
+  flip_p: 0.5
+  vflip_p: 0.5
+  rotate90_p: 0.5
+  clahe_p: 0.3
+  gauss_noise_p: 0.3
 

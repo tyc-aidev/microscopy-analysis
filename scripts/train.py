@@ -25,6 +25,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--max-epochs-phase1", type=int, default=None, help="Override phase-1 epoch cap")
     parser.add_argument("--max-epochs-phase2", type=int, default=None, help="Override phase-2 epoch cap")
     parser.add_argument("--patience", type=int, default=None, help="Override early-stopping patience")
+    parser.add_argument("--resume", action="store_true", help="Resume from results/<run>/checkpoint.pth if present")
+    parser.add_argument(
+        "--log-backend", default=None, choices=("none", "wandb", "mlflow"), help="Override experiment logging backend"
+    )
     return parser.parse_args()
 
 
@@ -37,8 +41,11 @@ def main() -> int:
         "max_epochs_phase1": args.max_epochs_phase1,
         "max_epochs_phase2": args.max_epochs_phase2,
         "patience": args.patience,
+        "log_backend": args.log_backend,
     }
     overrides = {k: v for k, v in overrides.items() if v is not None}
+    if args.resume:
+        overrides["resume"] = True
     if overrides:
         cfg = dataclasses.replace(cfg, **overrides)
 
