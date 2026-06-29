@@ -194,7 +194,7 @@ for build / forward / smoke training:
 
 ```bash
 uv venv --python 3.12 .venv && source .venv/bin/activate
-uv pip install -r requirements-apple.txt
+uv pip install -e . -r requirements-apple.txt
 python scripts/smoke_test.py --config configs/experiments/super1_smoke.yaml --build --device auto
 ```
 
@@ -203,6 +203,17 @@ python scripts/smoke_test.py --config configs/experiments/super1_smoke.yaml --bu
 not yet implemented on MPS. Verified on Apple Silicon (torch 2.x / smp 0.5.x): the
 v1.0 weights for `resnet50` and `se_resnext50_32x4d` load cleanly and a forward pass
 runs on `mps`.
+
+The Sprint 1 trainer runs on MPS too. For a quick local smoke run, cap the epochs
+so it finishes in well under a minute (full baseline uses 120 / 60 epochs):
+
+```bash
+python scripts/train.py --config configs/experiments/super1_baseline.yaml \
+  --device mps --batch-size 4 --max-epochs-phase1 6 --max-epochs-phase2 3 --patience 5
+```
+
+This trains for real (loss decreases, val IoU computed per epoch) and writes a real
+`checkpoint.pth`, `metrics.json`, and `run_summary.json` under `results/<run_name>/`.
 
 > Caveat: MPS uses a different torch/smp than the paper-pinned env, so it is for
 > **development and iteration**. Bit-exact paper numbers still come from the CUDA
@@ -242,15 +253,20 @@ pytest tests/test_repro_weights.py tests/test_repro_config.py tests/test_repro_d
 | 5 | Validation and reproduction report | [#6](https://github.com/tyc-aidev/microscopy-analysis/issues/6) |
 | 6 | Instance segmentation (optional) | [#7](https://github.com/tyc-aidev/microscopy-analysis/issues/7) |
 
-## Sprint 1 CLI (scaffold)
+## Sprint 1 CLI
 
-Run the baseline config:
+Run the baseline two-phase training:
 
 ```bash
 python scripts/train.py --config configs/experiments/super1_baseline.yaml
 ```
 
-Current scaffold writes `metrics.json`, `checkpoint.pth.tar`, and `run_summary.json` under `results/<run_name>/`.
+This runs the real pipeline — config-driven dataset + augmentation, `DiceBCELoss`,
+two-phase Adam (`2e-4` → resume `1e-5`) with early stopping on validation IoU — and
+writes a resumable `checkpoint.pth`, per-epoch `metrics.json` (train/val loss + per-class
+and mean IoU), and `run_summary.json` under `results/<run_name>/`. Optional
+`--device`, `--batch-size`, `--max-epochs-phase{1,2}`, and `--patience` flags override
+the config (e.g. for a fast local MPS smoke run; see the Apple Silicon section above).
 
 ## License
 

@@ -1,24 +1,72 @@
-"""Tests for Sprint 1 config and train pipeline scaffolding."""
+"""Tests for Sprint 1 config loading and the real two-phase trainer.
+
+The trainer is exercised on a tiny synthetic dataset with a tiny real
+``nn.Module`` (1x1 conv) swapped in for the heavy encoder model, so it actually
+trains a few steps fast on CPU. A real-encoder MPS run is covered separately as
+a slow/integration test.
+"""
 
 from __future__ import annotations
 
 import json
+import os
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
+import pytest
+import torch
 from PIL import Image
 
-from microscopy_analysis.train.config import load_train_config
+from microscopy_analysis.train.config import TrainConfig, load_train_config
 from microscopy_analysis.train.trainer import run_training
 
 
-def _make_super_train_data(root: Path) -> None:
-    dataset_dir = root / "Super1"
-    (dataset_dir / "train").mkdir(parents=True)
-    (dataset_dir / "train_annot").mkdir(parents=True)
-    Image.new("RGB", (4, 4), (128, 128, 128)).save(dataset_dir / "train" / "sample.tif")
-    Image.fromarray(np.zeros((4, 4, 3), dtype=np.uint8), mode="RGB").save(
-        dataset_dir / "train_annot" / "sample_mask.tif"
+class _TinyModel(torch.nn.Module):
+    """Pixelwise 1x1 conv with the activation the factory models carry."""
+
+    def __init__(self, num_classes: int) -> None:
+        super().__init__()
+        self.conv = torch.nn.Conv2d(3, num_classes, kernel_size=1)
+        self.num_classes = num_classes
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        y = self.conv(x)
+        return torch.softmax(y, dim=1) if self.num_classes > 1 else torch.sigmoid(y)
+
+
+def _make_super_split(root: Path, split: str, n: int, size: int = 24) -> None:
+    image_dir, annot_dir = root / "Super1" / split, root / "Super1" / f"{split}_annot"
+    image_dir.mkdir(parents=True, exist_ok=True)
+    annot_dir.mkdir(parents=True, exist_ok=True)
+    for i in range(n):
+        # Color-separable image so a 1x1 conv can learn the mapping and loss drops.
+        image = np.zeros((size, size, 3), dtype=np.uint8)
+        mask = np.zeros((size, size, 3), dtype=np.uint8)
+        image[: size // 2], mask[: size // 2] = (255, 0, 0), (255, 0, 0)  # class 1
+        image[size // 2 :], mask[size // 2 :] = (0, 0, 255), (0, 0, 255)  # class 2
+        Image.fromarray(image, mode="RGB").save(image_dir / f"s{i}.tif")
+        Image.fromarray(mask, mode="RGB").save(annot_dir / f"s{i}_mask.tif")
+
+
+def _tiny_config(tmp_path: Path) -> TrainConfig:
+    return TrainConfig(
+        run_name="tiny_run",
+        data_root=tmp_path,
+        dataset_name="Super1",
+        dataset_family="super",
+        split="train",
+        architecture="UnetPlusPlus",
+        encoder_name="resnet50",
+        pretraining="micronet",
+        num_classes=3,
+        output_dir=tmp_path / "results" / "tiny_run",
+        lr_phase1=1e-2,
+        lr_phase2=1e-3,
+        patience=50,
+        max_epochs_phase1=8,
+        max_epochs_phase2=2,
+        batch_size=2,
     )
 
 
@@ -38,6 +86,8 @@ def test_load_train_config(tmp_path: Path) -> None:
                 "  encoder_name: resnet50",
                 "  pretraining: micronet",
                 "  num_classes: 3",
+                "trainer:",
+                "  batch_size: 4",
             ]
         )
     )
@@ -46,42 +96,93 @@ def test_load_train_config(tmp_path: Path) -> None:
     assert cfg.dataset_name == "Super1"
     assert cfg.pretraining == "micronet"
     assert cfg.lr_phase2 == 1e-5
+    assert cfg.batch_size == 4  # overridden
+    assert cfg.val_split == "val"  # default
     assert cfg.data_root.is_absolute()
-    assert cfg.output_dir.is_absolute()
-    # Relative output_dir resolves against base_dir, not the config's directory.
     assert cfg.output_dir == (tmp_path / "results" / "test_run").resolve()
 
 
-def test_run_training_writes_outputs(tmp_path: Path, monkeypatch) -> None:
-    _make_super_train_data(tmp_path)
-    config_path = tmp_path / "exp.yaml"
-    config_path.write_text(
-        "\n".join(
-            [
-                "run_name: test_run",
-                f"data_root: {tmp_path.as_posix()}",
-                f"output_dir: {(tmp_path / 'results').as_posix()}",
-                "dataset:",
-                "  name: Super1",
-                "  family: super",
-                "  split: train",
-                "model:",
-                "  architecture: UnetPlusPlus",
-                "  encoder_name: resnet50",
-                "  pretraining: micronet",
-                "  num_classes: 3",
-            ]
-        )
-    )
-    cfg = load_train_config(config_path)
+def test_run_training_trains_and_writes_real_outputs(tmp_path: Path, monkeypatch) -> None:
+    _make_super_split(tmp_path, "train", n=4)
+    _make_super_split(tmp_path, "val", n=2)
+    cfg = _tiny_config(tmp_path)
 
     monkeypatch.setattr(
-        "microscopy_analysis.train.trainer.create_segmentation_model", lambda *args, **kwargs: object()
+        "microscopy_analysis.train.trainer.create_segmentation_model",
+        lambda *a, **k: _TinyModel(num_classes=cfg.num_classes),
     )
-    result = run_training(cfg)
+    result = run_training(cfg, device_preference="cpu")
 
-    metrics = json.loads(Path(result.metrics_path).read_text())
-    assert metrics["dataset"]["num_samples"] == 1
-    assert metrics["model"]["pretraining"] == "micronet"
+    # Real torch checkpoint that round-trips.
+    assert Path(result.checkpoint_path).suffix == ".pth"
+    ckpt = torch.load(result.checkpoint_path, map_location="cpu")
+    assert "model_state" in ckpt and "optimizer_state" in ckpt
+
+    # Per-epoch metrics with loss + IoU; loss decreases and IoU is computed.
+    records = json.loads(Path(result.metrics_path).read_text())
+    assert len(records) == result.epochs_trained >= cfg.max_epochs_phase1
+    # Val loss is the smoothed learning signal (train loss is noisy under per-batch aug).
+    phase1 = [r for r in records if r["phase"] == 1]
+    assert phase1[-1]["val_loss"] < phase1[0]["val_loss"]
+    assert all(0.0 <= record["val_mean_iou"] <= 1.0 for record in records)
+    assert len(records[-1]["val_iou_per_class"]) == cfg.num_classes
+
+    # Run summary reflects the best epoch.
+    summary = json.loads(Path(result.summary_path).read_text())
+    assert summary["num_samples"] == 4
+    assert summary["num_val_samples"] == 2
+    assert 0.0 <= result.best_mean_iou <= 1.0
+    assert result.best_score > 0.0
+
+
+def test_run_training_binary_ebc_path(tmp_path: Path, monkeypatch) -> None:
+    image_dir = tmp_path / "EBC1" / "train"
+    annot_dir = tmp_path / "EBC1" / "train_annot"
+    image_dir.mkdir(parents=True)
+    annot_dir.mkdir(parents=True)
+    for i in range(3):
+        image = np.zeros((24, 24, 3), dtype=np.uint8)
+        mask = np.zeros((24, 24), dtype=np.uint8)
+        image[:12], mask[:12] = 255, 1
+        Image.fromarray(image, mode="RGB").save(image_dir / f"t{i}.tif")
+        Image.fromarray(mask, mode="L").save(annot_dir / f"t{i}.tif")
+
+    cfg = replace(
+        _tiny_config(tmp_path),
+        dataset_name="EBC1",
+        dataset_family="ebc",
+        num_classes=1,
+        crop_size=16,
+        run_name="tiny_ebc",
+        output_dir=tmp_path / "results" / "tiny_ebc",
+    )
+    monkeypatch.setattr(
+        "microscopy_analysis.train.trainer.create_segmentation_model",
+        lambda *a, **k: _TinyModel(num_classes=1),
+    )
+    result = run_training(cfg, device_preference="cpu")
+    records = json.loads(Path(result.metrics_path).read_text())
+    # Binary path exercises sigmoid + BCE/Dice; trivial data converges fast.
+    assert min(r["train_loss"] for r in records) <= records[0]["train_loss"]
+    assert result.best_score >= 0.99
+    assert len(records[-1]["val_iou_per_class"]) == 2  # [background, foreground]
     assert Path(result.checkpoint_path).exists()
 
+
+@pytest.mark.slow
+@pytest.mark.skipif(not os.environ.get("RUN_SLOW"), reason="set RUN_SLOW=1 for the real-model run")
+def test_run_training_with_real_smp_model(tmp_path: Path) -> None:
+    """End-to-end through the real smp UnetPlusPlus (random init, no download)."""
+    _make_super_split(tmp_path, "train", n=2, size=64)
+    _make_super_split(tmp_path, "val", n=2, size=64)
+    cfg = replace(
+        _tiny_config(tmp_path),
+        pretraining="random",
+        max_epochs_phase1=1,
+        max_epochs_phase2=1,
+        lr_phase1=1e-3,
+    )
+    result = run_training(cfg, device_preference="auto")
+    assert Path(result.checkpoint_path).exists()
+    assert result.epochs_trained == 2
+    assert len(result.best_per_class_iou) == cfg.num_classes
