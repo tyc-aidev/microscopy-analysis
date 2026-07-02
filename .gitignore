@@ -6,6 +6,8 @@ results/
 
 # Generated benchmark-matrix configs (deterministically produced by scripts/run_matrix.py)
 configs/experiments/matrix/
+# Generated low-data sweep configs (deterministically produced by scripts/run_low_data.py)
+configs/experiments/low_data/
 
 # Local dataset downloads (see data/README.md)
 data/*

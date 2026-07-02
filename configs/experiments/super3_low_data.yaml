@@ -1,0 +1,33 @@
+run_name: super3_low_data_unetpp_resnet50_micronet_n1
+data_root: data/benchmark_segmentation_data
+output_dir: results
+seed: 42
+
+# Sprint 3 headline: Super3 has a single training image, so this reproduces the
+# paper's extreme low-data case. Compare against the imagenet regime (same config,
+# pretraining: imagenet) to compute the relative IoU-error reduction.
+dataset:
+  name: Super3
+  family: super
+  split: train
+
+model:
+  architecture: UnetPlusPlus
+  encoder_name: resnet50
+  pretraining: micronet
+  num_classes: 3
+
+optimizer:
+  lr_phase1: 0.0002
+  lr_phase2: 0.00001
+
+trainer:
+  patience: 30
+  max_epochs_phase1: 120
+  max_epochs_phase2: 60
+  # Cap the training split to N images (deterministic, seeded). Super3 already has
+  # 1; set this on richer Super datasets to sweep {1, 2, 4, 8, all}.
+  train_subsample: 1
+
+logging:
+  backend: none
