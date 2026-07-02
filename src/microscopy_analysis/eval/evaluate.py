@@ -107,8 +107,12 @@ def evaluate_run(
     if model is None:
         if not checkpoint_path.exists():
             raise FileNotFoundError(f"Checkpoint not found: {checkpoint_path}")
+        # Build with random init: the trained checkpoint overwrites every weight,
+        # so re-fetching the pretrained encoder from S3 here would be wasted work
+        # (and would need network at eval time). config.pretraining is still the
+        # regime we report — it's a property of how the checkpoint was trained.
         model = create_segmentation_model(
-            config.architecture, config.encoder_name, config.pretraining, config.num_classes
+            config.architecture, config.encoder_name, "random", config.num_classes
         )
         state = torch.load(checkpoint_path, map_location=device, weights_only=True)
         model.load_state_dict(state["model_state"])

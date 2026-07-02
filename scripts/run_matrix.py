@@ -28,6 +28,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dispatch", choices=("none", "local"), default="none")
     parser.add_argument("--device", default="auto", choices=("auto", "cuda", "mps", "cpu"))
     parser.add_argument("--max-jobs", type=int, default=None, help="Cap dispatched jobs (smoke run)")
+    parser.add_argument("--eval-split", default="test", help="Split to evaluate after each job (default: test)")
+    parser.add_argument("--no-eval", action="store_true", help="Train only; skip post-training evaluation")
     return parser.parse_args()
 
 
@@ -45,7 +47,9 @@ def main() -> int:
         return 0
 
     # Local sequential dispatch: build a TrainConfig per job from the rendered
-    # dict and run the real trainer. Heavy — cap with --max-jobs for a smoke run.
+    # dict, train it, then evaluate on the held-out split so aggregate_results.py
+    # has an eval_<split>.json to read. Heavy — cap with --max-jobs for a smoke run.
+    from microscopy_analysis.eval.evaluate import evaluate_run  # noqa: PLC0415
     from microscopy_analysis.train.config import TrainConfig  # noqa: PLC0415
     from microscopy_analysis.train.trainer import run_training  # noqa: PLC0415
 
@@ -71,6 +75,13 @@ def main() -> int:
         print(f"[dispatch] training {job.run_name}")
         result = run_training(cfg, device_preference=args.device)
         print(json.dumps(dataclasses.asdict(result), indent=2))
+        if args.no_eval:
+            continue
+        try:
+            eval_result = evaluate_run(cfg, split=args.eval_split, device_preference=args.device)
+            print(f"[dispatch] eval {job.run_name} {args.eval_split} score={eval_result.score:.4f}")
+        except (FileNotFoundError, RuntimeError) as exc:
+            print(f"[dispatch] eval skipped for {job.run_name}: {exc}")
     return 0
 
 

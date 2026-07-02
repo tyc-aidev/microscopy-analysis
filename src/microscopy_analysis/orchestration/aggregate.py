@@ -33,6 +33,23 @@ class ComparisonRow:
     micronet: float | None
     delta: float | None  # micronet - imagenet
     micronet_ge_imagenet: bool | None
+    paper_micronet: float | None = None  # transcribed target (paper/target_metrics.csv)
+    micronet_vs_paper: float | None = None  # reproduced micronet - paper micronet
+
+
+def load_paper_targets(csv_path: Path) -> dict[tuple[str, str], float]:
+    """Map ``(dataset, pretraining) -> paper_test_iou`` from ``target_metrics.csv``.
+
+    Rows with a blank ``paper_test_iou`` (not yet transcribed) are skipped.
+    """
+    targets: dict[tuple[str, str], float] = {}
+    with Path(csv_path).open(newline="") as fh:
+        for row in csv.DictReader(fh):
+            value = (row.get("paper_test_iou") or "").strip()
+            if not value:
+                continue
+            targets[(row["dataset"], row["pretraining"])] = float(value)
+    return targets
 
 
 def load_eval_scores(results_dir: Path, *, split: str = "test") -> list[RunScore]:
@@ -54,8 +71,15 @@ def load_eval_scores(results_dir: Path, *, split: str = "test") -> list[RunScore
     return scores
 
 
-def build_comparison(scores: list[RunScore]) -> list[ComparisonRow]:
-    """Pivot scores to per-(dataset, encoder) ImageNet-vs-MicroNet comparison rows."""
+def build_comparison(
+    scores: list[RunScore], targets: dict[tuple[str, str], float] | None = None
+) -> list[ComparisonRow]:
+    """Pivot scores to per-(dataset, encoder) ImageNet-vs-MicroNet comparison rows.
+
+    Optional ``targets`` (from :func:`load_paper_targets`) adds the paper MicroNet
+    IoU and the reproduced-vs-paper delta for each dataset.
+    """
+    targets = targets or {}
     by_key: dict[tuple[str, str], dict[str, float]] = {}
     for s in scores:
         by_key.setdefault((s.dataset_name, s.encoder_name), {})[s.pretraining] = s.score
@@ -65,6 +89,12 @@ def build_comparison(scores: list[RunScore]) -> list[ComparisonRow]:
         imagenet = regimes.get("imagenet")
         micronet = regimes.get("micronet")
         delta = round(micronet - imagenet, 6) if imagenet is not None and micronet is not None else None
+        paper_micronet = targets.get((dataset, "micronet"))
+        vs_paper = (
+            round(micronet - paper_micronet, 6)
+            if micronet is not None and paper_micronet is not None
+            else None
+        )
         rows.append(
             ComparisonRow(
                 dataset_name=dataset,
@@ -73,6 +103,8 @@ def build_comparison(scores: list[RunScore]) -> list[ComparisonRow]:
                 micronet=micronet,
                 delta=delta,
                 micronet_ge_imagenet=(delta >= 0) if delta is not None else None,
+                paper_micronet=paper_micronet,
+                micronet_vs_paper=vs_paper,
             )
         )
     return rows
@@ -95,25 +127,31 @@ def write_comparison_csv(rows: list[ComparisonRow], path: Path) -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", newline="") as fh:
         writer = csv.writer(fh)
-        writer.writerow(["dataset", "encoder", "imagenet_iou", "micronet_iou", "delta", "micronet_ge_imagenet"])
+        writer.writerow(
+            ["dataset", "encoder", "imagenet_iou", "micronet_iou", "delta",
+             "micronet_ge_imagenet", "paper_micronet_iou", "micronet_vs_paper"]
+        )
         for r in rows:
             writer.writerow(
-                [r.dataset_name, r.encoder_name, r.imagenet, r.micronet, r.delta, r.micronet_ge_imagenet]
+                [r.dataset_name, r.encoder_name, r.imagenet, r.micronet, r.delta,
+                 r.micronet_ge_imagenet, r.paper_micronet, r.micronet_vs_paper]
             )
     return path
 
 
 def render_markdown(rows: list[ComparisonRow], summary: dict) -> str:
-    lines = [
-        "| Dataset | Encoder | ImageNet IoU | MicroNet IoU | Δ | MicroNet ≥ ImageNet |",
-        "|---|---|---|---|---|---|",
-    ]
+    has_paper = any(r.paper_micronet is not None for r in rows)
+    header = ["Dataset", "Encoder", "ImageNet IoU", "MicroNet IoU", "Δ", "MicroNet ≥ ImageNet"]
+    if has_paper:
+        header += ["Paper MicroNet", "Repro − Paper"]
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     for r in rows:
         fmt = lambda v: "—" if v is None else f"{v:.4f}"  # noqa: E731
         flag = "—" if r.micronet_ge_imagenet is None else ("✅" if r.micronet_ge_imagenet else "❌")
-        lines.append(
-            f"| {r.dataset_name} | {r.encoder_name} | {fmt(r.imagenet)} | {fmt(r.micronet)} | {fmt(r.delta)} | {flag} |"
-        )
+        cells = [r.dataset_name, r.encoder_name, fmt(r.imagenet), fmt(r.micronet), fmt(r.delta), flag]
+        if has_paper:
+            cells += [fmt(r.paper_micronet), fmt(r.micronet_vs_paper)]
+        lines.append("| " + " | ".join(cells) + " |")
     lines.append("")
     lines.append(
         f"MicroNet ≥ ImageNet on {summary['micronet_ge_imagenet']}/{summary['compared_pairs']} pairs "

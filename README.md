@@ -268,6 +268,42 @@ and mean IoU), and `run_summary.json` under `results/<run_name>/`. Optional
 `--device`, `--batch-size`, `--max-epochs-phase{1,2}`, and `--patience` flags override
 the config (e.g. for a fast local MPS smoke run; see the Apple Silicon section above).
 
+## Sprint 2 CLI
+
+Sprint 2 reproduces the paper's central claim — MicroNet vs ImageNet pretraining
+across all 7 benchmarks — via a generate → train → evaluate → aggregate pipeline.
+
+**Evaluate** a trained run on the held-out test split (per-class + mean IoU):
+
+```bash
+python scripts/evaluate.py --config configs/experiments/super1_baseline.yaml --split test
+```
+
+Loads `results/<run_name>/model_best.pth` and writes `results/<run_name>/eval_test.json`.
+Inference is whole-image (inputs padded up to a multiple of 32, then cropped back);
+sliding-window patch inference is a Sprint 5 refinement.
+
+**Generate** the 56-job benchmark matrix (7 datasets × 4 pretraining regimes ×
+`UnetPlusPlus` × `{resnet50, se_resnext50_32x4d}`) as a manifest + per-job configs,
+and optionally train+evaluate locally (heavy — meant for a GPU/cloud fleet, so cap
+with `--max-jobs` for a smoke run; cloud fan-out is [#39](https://github.com/tyc-aidev/microscopy-analysis/issues/39)):
+
+```bash
+python scripts/run_matrix.py                          # write manifest + configs only
+python scripts/run_matrix.py --dispatch local --max-jobs 1 --device mps  # smoke: 1 job train+eval
+```
+
+**Aggregate** all `eval_test.json` files into the MicroNet-vs-ImageNet table (and,
+where transcribed, a reproduced-vs-paper comparison from `paper/target_metrics.csv`):
+
+```bash
+python scripts/aggregate_results.py
+```
+
+Writes `results/benchmark_matrix.csv` and prints a markdown table plus the majority-win
+summary (the Sprint 2 exit criterion). Populating paper baselines + running the full
+matrix on CUDA is [#40](https://github.com/tyc-aidev/microscopy-analysis/issues/40).
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
