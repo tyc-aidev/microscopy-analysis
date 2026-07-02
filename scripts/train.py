@@ -27,7 +27,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--patience", type=int, default=None, help="Override early-stopping patience")
     parser.add_argument("--resume", action="store_true", help="Resume from results/<run>/checkpoint.pth if present")
     parser.add_argument(
-        "--log-backend", default=None, choices=("none", "wandb", "mlflow"), help="Override experiment logging backend"
+        "--log-backend",
+        default=None,
+        choices=("none", "tensorboard", "wandb", "mlflow"),
+        help="Override experiment logging backend",
     )
     return parser.parse_args()
 

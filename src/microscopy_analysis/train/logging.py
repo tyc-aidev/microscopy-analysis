@@ -1,9 +1,10 @@
 """Pluggable structured experiment logging for Sprint 1.
 
-Backends are selected by name (``none`` | ``wandb`` | ``mlflow``); the default
-``none`` keeps training fully offline (no imports, no network) so unit tests and
-local smoke runs never touch a tracking server. Heavy backends are imported
-lazily inside their constructors so the dependency is only required when used.
+Backends are selected by name (``none`` | ``tensorboard`` | ``wandb`` | ``mlflow``);
+the default ``none`` keeps training fully offline (no imports, no network) so unit
+tests and local smoke runs never touch a tracking server. Heavy backends are
+imported lazily inside their constructors so the dependency is only required when
+used.
 
 Every backend logs the same three things: the resolved run params (full config
 + git SHA), per-epoch metric records, and a final run summary.
@@ -11,6 +12,7 @@ Every backend logs the same three things: the resolved run params (full config
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any, Protocol
 
 
@@ -55,6 +57,46 @@ class WandbLogger:
         self._run.finish()
 
 
+class TensorBoardLogger:
+    """TensorBoard backend (lazy ``tensorboard`` import via ``SummaryWriter``)."""
+
+    _SCALAR_KEYS = (
+        "train_loss",
+        "val_loss",
+        "val_mean_iou",
+        "val_score",
+        "lr",
+        "phase",
+    )
+
+    def __init__(self, run_name: str, log_dir: Path | None) -> None:
+        from torch.utils.tensorboard import SummaryWriter  # noqa: PLC0415
+
+        root = (log_dir or Path("results") / run_name).resolve()
+        self._writer = SummaryWriter(log_dir=str(root / "tensorboard"))
+
+    def log_params(self, params: dict[str, Any]) -> None:
+        lines = [f"{k}: {v}" for k, v in sorted(params.items())]
+        self._writer.add_text("config", "\n".join(lines), global_step=0)
+
+    def log_epoch(self, record: dict[str, Any]) -> None:
+        step = int(record.get("epoch", 0))
+        for key in self._SCALAR_KEYS:
+            if key in record and isinstance(record[key], (int, float)):
+                self._writer.add_scalar(key, record[key], step)
+        per_class = record.get("val_iou_per_class")
+        if isinstance(per_class, list):
+            for idx, value in enumerate(per_class):
+                self._writer.add_scalar(f"val_iou_class_{idx}", value, step)
+
+    def finish(self, summary: dict[str, Any]) -> None:
+        for key, value in summary.items():
+            if isinstance(value, (int, float)):
+                self._writer.add_scalar(f"summary/{key}", value, 0)
+        self._writer.flush()
+        self._writer.close()
+
+
 class MLflowLogger:
     """MLflow backend (lazy ``mlflow`` import)."""
 
@@ -79,13 +121,21 @@ class MLflowLogger:
         self._mlflow.end_run()
 
 
-def build_logger(backend: str, run_name: str, project: str | None = None) -> ExperimentLogger:
-    """Construct the logger for ``backend`` (``none`` | ``wandb`` | ``mlflow``)."""
+def build_logger(
+    backend: str,
+    run_name: str,
+    project: str | None = None,
+    *,
+    log_dir: Path | None = None,
+) -> ExperimentLogger:
+    """Construct the logger for ``backend`` (``none`` | ``tensorboard`` | ``wandb`` | ``mlflow``)."""
     key = (backend or "none").lower()
     if key == "none":
         return NoOpLogger()
+    if key == "tensorboard":
+        return TensorBoardLogger(run_name, log_dir)
     if key == "wandb":
         return WandbLogger(run_name, project)
     if key == "mlflow":
         return MLflowLogger(run_name, project)
-    raise ValueError(f"Unknown logging backend: {backend!r} (expected none|wandb|mlflow)")
+    raise ValueError(f"Unknown logging backend: {backend!r} (expected none|tensorboard|wandb|mlflow)")
