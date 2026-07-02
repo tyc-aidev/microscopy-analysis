@@ -35,6 +35,9 @@ class TrainConfig:
     loss_weight: float = 0.7
     metric_threshold: float = 0.5
     resume: bool = False
+    # Low-data ablation (Sprint 3): cap the training split to this many images
+    # (deterministic, seeded). None uses the full split. Val/test are never capped.
+    train_subsample: int | None = None
     # Structured logging (#13): none keeps runs offline. Raw augmentation overrides
     # (#12) are kept as a plain dict here so this module stays torch/albumentations-free.
     log_backend: str = "none"
@@ -87,6 +90,9 @@ def load_train_config(path: Path, base_dir: Path | None = None) -> TrainConfig:
         loss_weight=float(trainer.get("loss_weight", 0.7)),
         metric_threshold=float(trainer.get("metric_threshold", 0.5)),
         resume=bool(trainer.get("resume", False)),
+        train_subsample=(
+            int(trainer["train_subsample"]) if trainer.get("train_subsample") is not None else None
+        ),
         log_backend=str(logging_cfg.get("backend", "none")),
         log_project=logging_cfg.get("project"),
         augmentation=raw.get("augmentation"),

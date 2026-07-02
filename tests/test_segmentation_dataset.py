@@ -57,6 +57,21 @@ def test_super_dataset_yields_long_class_masks(tmp_path: Path) -> None:
     assert set(mask.unique().tolist()) <= {0, 1, 2}
 
 
+def test_dataset_subsample_limits_pairs_deterministically(tmp_path: Path) -> None:
+    dataset_dir = _make_super(tmp_path, n=6)
+    full = SegmentationDataset(dataset_dir, "train", "super")
+    assert len(full) == 6
+
+    small = SegmentationDataset(dataset_dir, "train", "super", subsample=2, subsample_seed=42)
+    again = SegmentationDataset(dataset_dir, "train", "super", subsample=2, subsample_seed=42)
+    assert len(small) == 2
+    assert [p.image_path for p in small.pairs] == [p.image_path for p in again.pairs]
+
+    # subsample None / oversized keeps the full split.
+    assert len(SegmentationDataset(dataset_dir, "train", "super", subsample=None)) == 6
+    assert len(SegmentationDataset(dataset_dir, "train", "super", subsample=99)) == 6
+
+
 def test_ebc_dataset_yields_float_binary_mask_and_crops(tmp_path: Path) -> None:
     dataset_dir = _make_ebc(tmp_path)
     transform = build_transforms("ebc", train=True, crop_size=512)

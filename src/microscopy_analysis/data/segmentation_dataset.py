@@ -22,7 +22,7 @@ from albumentations.pytorch import ToTensorV2
 from PIL import Image
 from torch.utils.data import Dataset
 
-from .dataset_adapter import decode_ebc_mask, decode_super_mask, list_sample_pairs
+from .dataset_adapter import decode_ebc_mask, decode_super_mask, list_sample_pairs, subsample_pairs
 
 IMAGENET_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_STD = (0.229, 0.224, 0.225)
@@ -99,10 +99,15 @@ class SegmentationDataset(Dataset):
         split: str,
         dataset_family: str,
         transform: A.Compose | None = None,
+        subsample: int | None = None,
+        subsample_seed: int = 42,
     ) -> None:
         self.dataset_family = dataset_family
         self.transform = transform
         self.pairs = list_sample_pairs(Path(dataset_root), split=split, dataset_family=dataset_family)
+        # Low-data ablation (Sprint 3): keep a deterministic subset of the split.
+        if subsample is not None:
+            self.pairs = subsample_pairs(self.pairs, subsample, seed=subsample_seed)
 
     def __len__(self) -> int:
         return len(self.pairs)

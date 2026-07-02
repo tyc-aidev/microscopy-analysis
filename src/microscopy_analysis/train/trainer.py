@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 
-from microscopy_analysis.data.dataset_adapter import list_sample_pairs
+from microscopy_analysis.data.dataset_adapter import list_sample_pairs, subsample_pairs
 from microscopy_analysis.data.segmentation_dataset import (
     AugmentationConfig,
     SegmentationDataset,
@@ -80,8 +80,15 @@ def _seed_everything(seed: int) -> None:
 def _make_loader(config: TrainConfig, split: str, *, train: bool) -> DataLoader:
     aug = AugmentationConfig.from_dict(config.augmentation, crop_size=config.crop_size)
     transform = build_transforms(config.dataset_family, train=train, crop_size=config.crop_size, aug=aug)
+    # Only the training split honours the low-data cap; val/test are always full.
+    subsample = config.train_subsample if train else None
     dataset = SegmentationDataset(
-        config.data_root / config.dataset_name, split, config.dataset_family, transform
+        config.data_root / config.dataset_name,
+        split,
+        config.dataset_family,
+        transform,
+        subsample=subsample,
+        subsample_seed=config.seed,
     )
     return DataLoader(
         dataset,
@@ -126,6 +133,9 @@ def run_training(config: TrainConfig, *, device_preference: str = "auto") -> Tra
         raise RuntimeError(
             f"No training pairs found in {dataset_root} split={config.split} family={config.dataset_family}"
         )
+    # Low-data ablation: report the effective (capped) training-image count. Uses
+    # the same seed as the loader so num_samples matches what actually trained.
+    train_pairs = subsample_pairs(train_pairs, config.train_subsample, seed=config.seed)
     val_pairs = list_sample_pairs(dataset_root, split=config.val_split, dataset_family=config.dataset_family)
     val_split = config.val_split if val_pairs else config.split  # fall back to train for tiny smoke sets
 

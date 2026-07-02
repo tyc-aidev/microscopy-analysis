@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -55,6 +56,20 @@ def list_sample_pairs(dataset_root: Path, split: str, dataset_family: str) -> li
         if mask_path is not None:
             pairs.append(SamplePair(image_path=image_path, mask_path=mask_path))
     return pairs
+
+
+def subsample_pairs(pairs: list[SamplePair], n: int | None, *, seed: int = 42) -> list[SamplePair]:
+    """Deterministically pick ``n`` sample pairs for the low-data ablation (Sprint 3).
+
+    A seeded RNG selects a reproducible subset (same ``seed`` -> same images), so
+    the ``{1, 2, 4, 8, all}`` training-set-size sweep is comparable across
+    pretraining regimes. ``n`` of ``None`` / ``<= 0`` / ``>= len(pairs)`` returns
+    every pair unchanged. The chosen pairs are returned in stable path order.
+    """
+    if n is None or n <= 0 or n >= len(pairs):
+        return list(pairs)
+    chosen = random.Random(seed).sample(pairs, n)
+    return sorted(chosen, key=lambda p: p.image_path.name)
 
 
 def decode_super_mask(mask_path: Path) -> np.ndarray:
