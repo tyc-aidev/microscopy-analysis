@@ -69,7 +69,7 @@ def main() -> int:
     model = create_segmentation_model(
         cfg.architecture, cfg.encoder_name, cfg.pretraining, cfg.num_classes
     ).to(device)
-    state = torch.load(checkpoint, map_location=device)
+    state = torch.load(checkpoint, map_location=device, weights_only=True)
     model.load_state_dict(state["model_state"])
     model.eval()
 
