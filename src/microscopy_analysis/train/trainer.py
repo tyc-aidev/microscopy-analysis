@@ -144,7 +144,7 @@ def run_training(config: TrainConfig, *, device_preference: str = "auto") -> Tra
     metrics_path = config.output_dir / "metrics.json"
     summary_path = config.output_dir / "run_summary.json"
 
-    logger = build_logger(config.log_backend, config.run_name, config.log_project)
+    logger = build_logger(config.log_backend, config.run_name, config.log_project, log_dir=config.output_dir)
     # Stringify non-scalars (e.g. Path data_root/output_dir) so every backend accepts them.
     params = {k: (v if isinstance(v, (int, float, bool, str, type(None))) else str(v)) for k, v in asdict(config).items()}
     logger.log_params({**params, "git_sha": _git_sha(), "device": str(device)})

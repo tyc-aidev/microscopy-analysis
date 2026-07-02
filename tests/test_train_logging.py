@@ -12,7 +12,7 @@ from PIL import Image
 
 from microscopy_analysis.train import trainer as trainer_mod
 from microscopy_analysis.train.config import TrainConfig
-from microscopy_analysis.train.logging import NoOpLogger, build_logger
+from microscopy_analysis.train.logging import NoOpLogger, TensorBoardLogger, build_logger
 from microscopy_analysis.train.trainer import run_training
 
 
@@ -90,7 +90,28 @@ def test_default_backend_is_offline_noop() -> None:
 
 def test_unknown_backend_raises() -> None:
     with pytest.raises(ValueError, match="Unknown logging backend"):
-        build_logger("tensorboard", "r")
+        build_logger("not-a-backend", "r")
+
+
+def test_tensorboard_logger_writes_scalars(tmp_path: Path) -> None:
+    pytest.importorskip("tensorboard")
+    logger = build_logger("tensorboard", "tb_run", log_dir=tmp_path / "results" / "tb_run")
+    assert isinstance(logger, TensorBoardLogger)
+    logger.log_params({"run_name": "tb_run", "lr_phase1": 2e-4})
+    logger.log_epoch(
+        {
+            "epoch": 1,
+            "phase": 1,
+            "lr": 2e-4,
+            "train_loss": 0.5,
+            "val_loss": 0.6,
+            "val_mean_iou": 0.3,
+            "val_score": 0.3,
+            "val_iou_per_class": [0.2, 0.3, 0.4],
+        }
+    )
+    logger.finish({"best_score": 0.3, "epochs_trained": 1})
+    assert (tmp_path / "results" / "tb_run" / "tensorboard").is_dir()
 
 
 def test_run_training_drives_logger(tmp_path: Path, monkeypatch) -> None:

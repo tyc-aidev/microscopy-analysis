@@ -26,7 +26,7 @@ trainer:
 
 # Structured experiment logging (#13). none = fully offline (default).
 logging:
-  backend: none  # none | wandb | mlflow
+  backend: none  # none | tensorboard | wandb | mlflow
   # project: microscopy-analysis
 
 # Optional augmentation overrides (#12); omit to use the PLAN.md Super profile
