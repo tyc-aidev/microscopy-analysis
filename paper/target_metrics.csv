@@ -1,0 +1,15 @@
+dataset,architecture,encoder,pretraining,paper_test_iou,source_table,notes
+Super1,UnetPlusPlus,resnet50,imagenet,,Table 2,TODO transcribe from Stuckner et al. 2022 PDF
+Super1,UnetPlusPlus,resnet50,micronet,,Table 2,TODO transcribe from Stuckner et al. 2022 PDF
+Super2,UnetPlusPlus,resnet50,imagenet,,Table 2,TODO transcribe from Stuckner et al. 2022 PDF
+Super2,UnetPlusPlus,resnet50,micronet,,Table 2,TODO transcribe from Stuckner et al. 2022 PDF
+Super3,UnetPlusPlus,resnet50,imagenet,,Table 2,TODO transcribe from Stuckner et al. 2022 PDF
+Super3,UnetPlusPlus,resnet50,micronet,,Table 2,TODO transcribe from Stuckner et al. 2022 PDF
+Super4,UnetPlusPlus,resnet50,imagenet,,Table 2,TODO transcribe from Stuckner et al. 2022 PDF
+Super4,UnetPlusPlus,resnet50,micronet,,Table 2,TODO transcribe from Stuckner et al. 2022 PDF
+EBC1,UnetPlusPlus,resnet50,imagenet,,Table 3,TODO transcribe; EBC binary oxide IoU
+EBC1,UnetPlusPlus,resnet50,micronet,,Table 3,TODO transcribe; EBC binary oxide IoU
+EBC2,UnetPlusPlus,resnet50,imagenet,,Table 3,TODO transcribe; EBC binary oxide IoU
+EBC2,UnetPlusPlus,resnet50,micronet,,Table 3,TODO transcribe; EBC binary oxide IoU
+EBC3,UnetPlusPlus,resnet50,imagenet,,Table 3,TODO transcribe; EBC binary oxide IoU
+EBC3,UnetPlusPlus,resnet50,micronet,,Table 3,TODO transcribe; EBC binary oxide IoU

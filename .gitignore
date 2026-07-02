@@ -4,6 +4,9 @@ results/
 *.pth.tar
 *.pth
 
+# Generated benchmark-matrix configs (deterministically produced by scripts/run_matrix.py)
+configs/experiments/matrix/
+
 # Local dataset downloads (see data/README.md)
 data/*
 !data/README.md
