@@ -9,7 +9,7 @@ import torch
 from PIL import Image
 
 from microscopy_analysis.data.dataset_adapter import decode_ebc_mask, decode_super_mask, list_sample_pairs
-from microscopy_analysis.data.segmentation_dataset import build_transforms
+from microscopy_analysis.data.segmentation_dataset import IMAGENET_MEAN, IMAGENET_STD, build_transforms
 from microscopy_analysis.device import enable_mps_fallback, resolve_device
 from microscopy_analysis.eval.visualize import class_index_to_rgb, error_map_rgba, make_prediction_panel
 from microscopy_analysis.models import create_segmentation_model
@@ -28,6 +28,20 @@ def _predict_labels(model: torch.nn.Module, image_t: torch.Tensor, *, num_classe
     if num_classes == 1:
         return (probs.squeeze().cpu().numpy() >= 0.5).astype(np.uint8)
     return probs.argmax(dim=1).squeeze(0).cpu().numpy().astype(np.uint8)
+
+
+def _tensor_to_display_image(image_t: torch.Tensor) -> Image.Image:
+    """Convert a normalized CHW tensor back to a displayable RGB image."""
+    image_np = image_t.detach().cpu().permute(1, 2, 0).numpy()
+    image_np = image_np * np.asarray(IMAGENET_STD) + np.asarray(IMAGENET_MEAN)
+    image_np = np.clip(image_np, 0.0, 1.0)
+    return Image.fromarray((image_np * 255).astype(np.uint8), mode="RGB")
+
+
+def _mask_to_labels(mask) -> np.ndarray:
+    if isinstance(mask, torch.Tensor):
+        return mask.detach().cpu().numpy().astype(np.uint8)
+    return np.asarray(mask, dtype=np.uint8)
 
 
 def run_prediction_panels(
@@ -64,17 +78,18 @@ def run_prediction_panels(
 
     written: list[Path] = []
     for pair in pairs[:limit]:
-        image = Image.open(pair.image_path).convert("RGB")
-        image_np = np.asarray(image, dtype=np.uint8)
+        image_np = np.asarray(Image.open(pair.image_path).convert("RGB"), dtype=np.uint8)
         target = _decode_mask(pair.mask_path, cfg.dataset_family)
 
         transformed = transform(image=image_np, mask=target)
         image_t = transformed["image"].to(dev)
+        target_labels = _mask_to_labels(transformed["mask"])
+        display_image = _tensor_to_display_image(image_t)
         pred = _predict_labels(model, image_t, num_classes=cfg.num_classes)
 
-        target_rgb = class_index_to_rgb(target, cfg.dataset_family, num_classes=cfg.num_classes)
+        target_rgb = class_index_to_rgb(target_labels, cfg.dataset_family, num_classes=cfg.num_classes)
         pred_rgb = class_index_to_rgb(pred, cfg.dataset_family, num_classes=cfg.num_classes)
-        panel = make_prediction_panel(image, target_rgb, pred_rgb, error_map_rgba(pred, target))
+        panel = make_prediction_panel(display_image, target_rgb, pred_rgb, error_map_rgba(pred, target_labels))
 
         out_path = output_dir / f"{pair.image_path.stem}_panel.png"
         panel.save(out_path)
