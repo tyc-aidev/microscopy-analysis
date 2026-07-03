@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+import yaml
 from PIL import Image
 
 from microscopy_analysis.train.config import TrainConfig, load_train_config
@@ -68,6 +69,24 @@ def _tiny_config(tmp_path: Path) -> TrainConfig:
         max_epochs_phase2=2,
         batch_size=2,
     )
+
+
+CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs" / "experiments"
+BASELINE_CONFIGS = sorted(CONFIG_DIR.glob("*_baseline.yaml"))
+
+
+@pytest.mark.parametrize("config_path", BASELINE_CONFIGS, ids=lambda p: p.stem)
+def test_baseline_experiment_configs_load(config_path: Path) -> None:
+    expected_name = yaml.safe_load(config_path.read_text())["run_name"]
+    cfg = load_train_config(config_path)
+    assert cfg.run_name == expected_name
+    assert cfg.dataset_family in ("super", "ebc")
+    assert cfg.encoder_name == "senet154"
+    if cfg.dataset_family == "super":
+        assert cfg.num_classes == 3
+    else:
+        assert cfg.num_classes == 1
+    assert cfg.pretraining == "micronet"
 
 
 def test_load_train_config(tmp_path: Path) -> None:

@@ -1,4 +1,4 @@
-run_name: super1_baseline_unetpp_resnet50_micronet
+run_name: super1_baseline_unetpp_senet154_micronet
 data_root: data/benchmark_segmentation_data
 output_dir: results
 seed: 42
@@ -10,7 +10,7 @@ dataset:
 
 model:
   architecture: UnetPlusPlus
-  encoder_name: resnet50
+  encoder_name: senet154
   pretraining: micronet
   num_classes: 3
 

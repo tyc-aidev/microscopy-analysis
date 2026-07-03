@@ -17,6 +17,16 @@ def test_image_micronet_alias():
     assert url == f"{S3_BASE}resnet50_pretrained_imagenet-microscopynet_v1.0.pth.tar"
 
 
+def test_senet154_micronet_pins_v1_0():
+    url = micronet_weight_url("senet154", "micronet")
+    assert url == f"{S3_BASE}senet154_pretrained_microscopynet_v1.0.pth.tar"
+
+
+def test_se_resnet50_micronet_pins_v1_0():
+    url = micronet_weight_url("se_resnet50", "micronet")
+    assert url == f"{S3_BASE}se_resnet50_pretrained_microscopynet_v1.0.pth.tar"
+
+
 def test_se_resnext_default_v1_0():
     url = micronet_weight_url("se_resnext50_32x4d", "micronet")
     assert url == f"{S3_BASE}se_resnext50_32x4d_pretrained_microscopynet_v1.0.pth.tar"

@@ -38,8 +38,9 @@ DATASETS: tuple[DatasetSpec, ...] = (
 # All four regimes so MicroNet can be compared against every baseline in one sweep.
 PRETRAININGS: tuple[str, ...] = ("random", "imagenet", "micronet", "image-micronet")
 
-# Two v1.0 top-performing encoders from the NASA README leaderboard.
-ENCODERS: tuple[str, ...] = ("resnet50", "se_resnext50_32x4d")
+# Default baseline encoder: SENet-154 (top MicroNet v1.0 acc1 ~94.0%, micronet-only pretrain).
+# Second matrix encoder: se_resnext50_32x4d (~93.7%) for ablation diversity.
+ENCODERS: tuple[str, ...] = ("senet154", "se_resnext50_32x4d")
 
 ARCHITECTURE = "UnetPlusPlus"
 
