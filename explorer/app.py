@@ -30,6 +30,7 @@ from explorer.lib.stats import (
 )
 from explorer.lib.streamlit_data import cached_benchmark_records, deserialize_records
 from explorer.lib.benchmark_panel import render_benchmark_panel
+from explorer.lib.runs import count_runs, get_results_root, scan_runs
 
 st.set_page_config(
     page_title="Dataset Explorer",
@@ -57,14 +58,18 @@ st.markdown(
 )
 
 data_root = get_data_root()
+results_root = get_results_root()
 benchmark_ready = is_data_populated()
 instance_ready = is_instance_data_populated(data_root)
 examples_ready = is_examples_data_populated(data_root)
+local_runs, cuda_runs = count_runs(results_root)
+training_ready = local_runs + cuda_runs > 0
 
 status_bits = [
     ("Benchmarks", benchmark_ready),
     ("Instance seg", instance_ready),
     ("Examples", examples_ready),
+    ("Training runs", training_ready),
 ]
 status_text = " · ".join(
     f"{'✅' if ready else '⚠️'} {label}" for label, ready in status_bits
@@ -169,3 +174,18 @@ if instance_ready:
     st.caption(f"Instance data: `{instance_seg_root(data_root)}`")
 if examples_ready:
     st.caption(f"Examples: `{examples_root(data_root)}`")
+
+with st.expander("Training results", expanded=training_ready):
+    st.caption(f"Results root: `{results_root}`")
+    if training_ready:
+        st.write(f"**{local_runs}** local (MPS/CPU) · **{cuda_runs}** CUDA reproduction run(s)")
+        for run in scan_runs(results_root):
+            iou = run.best_mean_iou
+            st.write(f"- `{run.run_name}` — best val IoU **{iou:.4f}** ({run.device})")
+        st.caption("Open **Local Training** or **Paper Reproduction CUDA** in the sidebar for curves and panels.")
+    else:
+        st.caption("No training runs yet. Train locally, then refresh:")
+        st.code(
+            "python scripts/train.py --config configs/experiments/super1_baseline.yaml --device mps",
+            language="bash",
+        )
