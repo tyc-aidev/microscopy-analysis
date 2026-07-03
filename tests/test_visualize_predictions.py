@@ -77,7 +77,9 @@ def test_visualize_predictions_script(tmp_path: Path, monkeypatch) -> None:
     )
 
     viz_mod = _load_viz_module()
-    monkeypatch.setattr(viz_mod, "create_segmentation_model", lambda *a, **k: _TinyModel(num_classes=3))
+    from microscopy_analysis.eval import predictions as pred_mod
+
+    monkeypatch.setattr(pred_mod, "create_segmentation_model", lambda *a, **k: _TinyModel(num_classes=3))
     monkeypatch.setattr(
         viz_mod,
         "parse_args",
