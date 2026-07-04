@@ -6,7 +6,8 @@ the notebook baseline, with the same loss-curve shape.**
 
 Source notebooks (NASA `pretrained-microscopy-models/examples/`):
 
-- Multiclass: `Super1` — `UnetPlusPlus` + `resnet50` + `micronet` (v1.0)
+- Multiclass: `Super1` — `UnetPlusPlus` + `se_resnet50` + `micronet` (v1.0)
+  (NASA's multiclass notebook uses plain `resnet50`; we use SE-ResNet-50 locally.)
 - Binary: `EBC1` — `UnetPlusPlus` + `se_resnext50_32x4d` + `micronet` (v1.0)
 
 Reproduce with:
@@ -20,7 +21,7 @@ python scripts/smoke_test.py --config configs/experiments/ebc1_smoke.yaml  --bui
 
 | Config | Notebook test IoU | Our smoke test IoU | Δ | Within 2–5%? | Loss-curve shape matches? |
 |---|---|---|---|---|---|
-| `super1_smoke` (Super1, resnet50, micronet v1.0) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
+| `super1_smoke` (Super1, se_resnet50, micronet v1.0) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
 | `ebc1_smoke` (EBC1, se_resnext50_32x4d, micronet v1.0) | _TBD_ | _TBD_ | _TBD_ | _TBD_ | _TBD_ |
 
 ## Environment
