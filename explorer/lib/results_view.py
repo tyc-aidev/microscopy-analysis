@@ -7,7 +7,7 @@ from pathlib import Path
 import streamlit as st
 
 from explorer.lib.prediction_panels import (
-    generate_panels,
+    ensure_panels,
     list_panels,
     render_panel_browser,
     torch_available,
@@ -86,38 +86,59 @@ def render_run_dashboard(
 
     st.markdown("**Validation predictions**")
     panels = list_panels(run.run_dir, split)
+    can_generate = (
+        allow_live_inference and run.has_best and config_path is not None and torch_available()
+    )
+    auto_key = f"{key_prefix}_panels_autogen_{run.run_name}_{split}"
 
-    if not panels and allow_live_inference:
-        if not run.has_best:
-            st.warning("No `model_best.pth` — train or sync checkpoints before generating panels.")
-        elif config_path is None:
-            st.info("Select a matching experiment YAML in the sidebar to generate panels.")
-        elif not torch_available():
-            st.info(
-                "Install the PyTorch stack for live inference:\n\n"
-                "```bash\nuv pip install -r requirements-apple.txt\n```\n\n"
-                "Or pre-generate panels:\n\n"
-                f"```bash\npython scripts/visualize_predictions.py "
-                f"--config {config_path} --split {split}\n```"
-            )
+    if not panels and not can_generate:
+        if allow_live_inference:
+            if not run.has_best:
+                st.warning("No `model_best.pth` — train or sync checkpoints before generating panels.")
+            elif config_path is None:
+                st.info("Select a matching experiment YAML in the sidebar to generate panels.")
+            elif not torch_available():
+                st.info(
+                    "Install the PyTorch stack for live inference:\n\n"
+                    "```bash\nuv pip install -r requirements-apple.txt\n```\n\n"
+                    "Or pre-generate panels:\n\n"
+                    f"```bash\npython scripts/visualize_predictions.py "
+                    f"--config {config_path} --split {split}\n```"
+                )
         else:
-            if st.button("Generate panels", key=f"{key_prefix}_gen"):
-                with st.spinner("Running inference…"):
-                    try:
-                        panels = generate_panels(
-                            config_path, run.run_dir, split, device=inference_device
-                        )
-                        st.session_state[f"{key_prefix}_panel_idx"] = 0
-                        st.success(f"Generated {len(panels)} panel(s).")
-                        st.rerun()
-                    except Exception as exc:
-                        st.error(str(exc))
-    elif not panels and not allow_live_inference:
-        st.info(
-            "Prediction panels must be generated on the CUDA host before sync:\n\n"
-            f"```bash\npython scripts/visualize_predictions.py "
-            f"--config configs/experiments/<experiment>.yaml --split {split} --device cuda\n```\n\n"
-            "Then copy `results/<run_name>/predictions/` to this machine."
-        )
+            st.info(
+                "Prediction panels must be generated on the CUDA host before sync:\n\n"
+                f"```bash\npython scripts/visualize_predictions.py "
+                f"--config configs/experiments/<experiment>.yaml --split {split} --device cuda\n```\n\n"
+                "Then copy `results/<run_name>/predictions/` to this machine."
+            )
+    elif not panels and can_generate and not st.session_state.get(auto_key):
+        with st.spinner("Generating prediction panels…"):
+            try:
+                panels = ensure_panels(
+                    config_path, run.run_dir, split, device=inference_device
+                )
+                st.session_state[auto_key] = True
+                st.session_state[f"{key_prefix}_panel_idx"] = 0
+            except Exception as exc:
+                st.error(str(exc))
+
+    if can_generate:
+        if st.button("Regenerate panels", key=f"{key_prefix}_regen"):
+            with st.spinner("Running inference…"):
+                try:
+                    panels = ensure_panels(
+                        config_path,
+                        run.run_dir,
+                        split,
+                        device=inference_device,
+                        force=True,
+                    )
+                    st.session_state[auto_key] = True
+                    st.session_state[f"{key_prefix}_panel_idx"] = 0
+                    st.success(f"Generated {len(panels)} panel(s).")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
 
     render_panel_browser(panels, key_prefix=key_prefix)

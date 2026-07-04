@@ -23,6 +23,21 @@ def list_panels(run_dir: Path, split: str) -> list[Path]:
     return sorted(pred_dir.glob("*_panel.png"))
 
 
+def ensure_panels(
+    config_path: Path,
+    run_dir: Path,
+    split: str,
+    *,
+    device: str = "auto",
+    force: bool = False,
+) -> list[Path]:
+    """Return saved panels, generating them first when missing (or when *force*)."""
+    existing = list_panels(run_dir, split)
+    if existing and not force:
+        return existing
+    return generate_panels(config_path, run_dir, split, device=device)
+
+
 def generate_panels(
     config_path: Path,
     run_dir: Path,
