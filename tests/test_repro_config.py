@@ -17,7 +17,7 @@ def test_load_super1_smoke():
     assert cfg.dataset.family == "super"
     assert cfg.dataset.classes == 3
     assert cfg.model.architecture == "UnetPlusPlus"
-    assert cfg.model.encoder == "resnet50"
+    assert cfg.model.encoder == "se_resnet50"
     assert cfg.model.micronet_version == "1.0"
     assert cfg.training.lr == pytest.approx(2e-4)
 

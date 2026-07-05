@@ -7,6 +7,8 @@ Reproduction of [Microstructure segmentation with deep learning encoders pre-tra
 - **Dataset Explorer** — Streamlit app to browse NASA public datasets before training ([#8](https://github.com/tyc-aidev/microscopy-analysis/issues/8), merged in [#9](https://github.com/tyc-aidev/microscopy-analysis/pull/9)).
 - **Sprint 0** — reproduction foundation and smoke test ([#1](https://github.com/tyc-aidev/microscopy-analysis/issues/1)): MicroNet **v1.0** weight pinning, model factory, smoke-test harness.
 - **Sprint 1 scaffold** — config-driven training entrypoint with dataset adapter and two-phase trainer skeleton ([#2](https://github.com/tyc-aidev/microscopy-analysis/issues/2)).
+- **Local training explorer** — Streamlit pages for local MPS runs and imported CUDA reproduction runs (metrics, qualitative panels, config lookup).
+- **Baseline configs** — ready-to-run local YAMLs for all 7 semantic benchmarks (`Super1`–`Super4`, `EBC1`–`EBC3`) using `senet154` + MicroNet v1.0.
 
 See [PLAN.md](PLAN.md) for the full reproduction plan and sprint breakdown. Explorer design: [PLAN_DATASET_EXPLORER.md](PLAN_DATASET_EXPLORER.md).
 
@@ -81,6 +83,8 @@ You only need the explorer dependencies installed (`pip install -r requirements-
 | **Benchmarks** | Filterable Super/EBC browser with mask overlays |
 | **Instance Segmentation** | Melt-pool COCO tiles with bbox and polygon overlays |
 | **Examples** | Reference images from NASA notebooks |
+| **Local Training** | Browse local MPS/CPU runs under `results/`, plot loss/IoU curves, and generate validation prediction panels |
+| **Paper Reproduction CUDA** | Browse imported CUDA runs, review paper-pinned env requirements, and inspect synced prediction panels |
 
 ### 4. Tests
 
@@ -200,9 +204,95 @@ python scripts/smoke_test.py --config configs/experiments/super1_smoke.yaml --bu
 
 `scripts/smoke_test.py` and `microscopy_analysis.device.resolve_device()` auto-select
 `cuda → mps → cpu` and enable `PYTORCH_ENABLE_MPS_FALLBACK` for the handful of ops
-not yet implemented on MPS. Verified on Apple Silicon (torch 2.x / smp 0.5.x): the
-v1.0 weights for `resnet50` and `se_resnext50_32x4d` load cleanly and a forward pass
-runs on `mps`.
+not yet implemented on MPS. Verified on Apple Silicon (torch 2.x / smp 0.5.x):
+the baseline `senet154` MicroNet v1.0 weights load and build correctly on `mps`.
+Because `senet154` is much larger than `resnet50`, local runs typically need a
+smaller batch size (`1`–`2` on Apple Silicon).
+
+### Baseline configs for local training
+
+All baseline configs live under `configs/experiments/` and use:
+
+- `architecture: UnetPlusPlus`
+- `encoder_name: senet154`
+- `pretraining: micronet` (MicroNet **v1.0**, never v1.1)
+- `optimizer: Adam` with the paper-style two-phase schedule (`2e-4` → `1e-5`)
+- `trainer: patience=30, max_epochs_phase1=120, max_epochs_phase2=60`
+
+| Dataset | Config | Classes | Notes |
+|---------|--------|---------|-------|
+| `Super1` | `configs/experiments/super1_baseline.yaml` | 3 | Ni-superalloy multiclass benchmark |
+| `Super2` | `configs/experiments/super2_baseline.yaml` | 3 | Ni-superalloy multiclass benchmark |
+| `Super3` | `configs/experiments/super3_baseline.yaml` | 3 | Very low-data benchmark |
+| `Super4` | `configs/experiments/super4_baseline.yaml` | 3 | Ni-superalloy multiclass benchmark |
+| `EBC1` | `configs/experiments/ebc1_baseline.yaml` | 1 | Binary oxide task |
+| `EBC2` | `configs/experiments/ebc2_baseline.yaml` | 1 | Binary oxide task |
+| `EBC3` | `configs/experiments/ebc3_baseline.yaml` | 1 | Binary oxide task |
+
+### Local training workflow
+
+1. **Install the Apple Silicon training stack**
+
+   ```bash
+   uv venv --python 3.12 .venv && source .venv/bin/activate
+   uv pip install -e . -r requirements-apple.txt
+   ```
+
+2. **Download the datasets**
+
+   ```bash
+   ./scripts/download_data.sh
+   ```
+
+   Use the full download for any `EBC*` run. `--sample` is only enough for the
+   `Super1`–`Super4` benchmarks.
+
+3. **Run one dataset locally**
+
+   Quick smoke run:
+
+   ```bash
+   python scripts/train.py --config configs/experiments/super1_baseline.yaml \
+     --device mps --batch-size 2 --max-epochs-phase1 6 --max-epochs-phase2 3 --patience 5
+   ```
+
+   Overnight / full baseline run:
+
+   ```bash
+   python scripts/train.py --config configs/experiments/super1_baseline.yaml \
+     --device mps --batch-size 2
+   ```
+
+   Omitting the epoch overrides uses the config defaults (`120 / 60`) with early
+   stopping on validation IoU, which is the recommended overnight setting.
+
+4. **Loop all baselines except `Super2`**
+
+   ```bash
+   ./scripts/train_baselines_except_super2.sh
+   ```
+
+   The helper script defaults to a quick local smoke profile. For an overnight
+   run, override the environment variables:
+
+   ```bash
+   DEVICE=mps BATCH_SIZE=2 PATIENCE=30 \
+     MAX_EPOCHS_PHASE1=120 MAX_EPOCHS_PHASE2=60 \
+     ./scripts/train_baselines_except_super2.sh
+   ```
+
+5. **Visualize metrics and predictions**
+
+   ```bash
+   ./scripts/run_explorer.sh
+   ```
+
+   Open the **Local Training** page in Streamlit to:
+
+   - browse runs discovered under `results/`
+   - inspect `metrics.json` loss / IoU curves automatically
+   - select the matching config YAML
+   - generate `val` prediction panels on demand (saved under `results/<run_name>/predictions/val/`)
 
 The Sprint 1 trainer runs on MPS too. For a quick local smoke run, cap the epochs
 so it finishes in well under a minute (full baseline uses 120 / 60 epochs):
@@ -284,7 +374,7 @@ Inference is whole-image (inputs padded up to a multiple of 32, then cropped bac
 sliding-window patch inference is a Sprint 5 refinement.
 
 **Generate** the 56-job benchmark matrix (7 datasets × 4 pretraining regimes ×
-`UnetPlusPlus` × `{resnet50, se_resnext50_32x4d}`) as a manifest + per-job configs,
+`UnetPlusPlus` × `{senet154, se_resnext50_32x4d}`) as a manifest + per-job configs,
 and optionally train+evaluate locally (heavy — meant for a GPU/cloud fleet, so cap
 with `--max-jobs` for a smoke run; cloud fan-out is [#39](https://github.com/tyc-aidev/microscopy-analysis/issues/39)):
 

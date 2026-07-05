@@ -1,0 +1,35 @@
+run_name: super4_baseline_unetpp_senet154_micronet
+data_root: data/benchmark_segmentation_data
+output_dir: results
+seed: 42
+
+dataset:
+  name: Super4
+  family: super
+  split: train
+
+model:
+  architecture: UnetPlusPlus
+  encoder_name: senet154
+  pretraining: micronet
+  num_classes: 3
+
+optimizer:
+  lr_phase1: 0.0002
+  lr_phase2: 0.00001
+
+trainer:
+  patience: 30
+  max_epochs_phase1: 120
+  max_epochs_phase2: 60
+  resume: false
+
+logging:
+  backend: none
+
+augmentation:
+  flip_p: 0.5
+  vflip_p: 0.5
+  rotate90_p: 0.5
+  clahe_p: 0.3
+  gauss_noise_p: 0.3

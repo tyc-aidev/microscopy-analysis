@@ -1,5 +1,5 @@
 # Sprint 0 reference smoke config: Super1 multiclass.
-# UnetPlusPlus + resnet50 + MicroNet v1.0 (matches the NASA multiclass notebook).
+# UnetPlusPlus + se_resnet50 + MicroNet v1.0 (plain resnet50 omitted — weak v1.0 encoder).
 name: super1_smoke
 
 dataset:
@@ -14,7 +14,7 @@ dataset:
 
 model:
   architecture: UnetPlusPlus
-  encoder: resnet50
+  encoder: se_resnet50
   pretraining: micronet
   micronet_version: "1.0"   # paper version; never 1.1
 
