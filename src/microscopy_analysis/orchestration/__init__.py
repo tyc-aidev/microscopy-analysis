@@ -8,6 +8,7 @@ from .low_data import (
     generate_low_data_jobs,
     resolve_sizes,
 )
+from .low_data import ENCODERS as LOW_DATA_ENCODERS
 from .low_data_analysis import (
     LowDataRow,
     RunPoint,
@@ -40,6 +41,7 @@ __all__ = [
     # Sprint 3 low-data ablation
     "DEFAULT_SIZES",
     "LOW_DATA_PRETRAININGS",
+    "LOW_DATA_ENCODERS",
     "SUPER_DATASETS",
     "LowDataJob",
     "generate_low_data_jobs",

@@ -410,16 +410,17 @@ python scripts/train.py --config configs/experiments/super3_low_data.yaml
 ```
 
 **Generate** the low-data sweep (Super1–4 × `{1,2,4,8,all}` × `{imagenet, micronet}`
-× `resnet50`/`UnetPlusPlus`) as a manifest + per-job configs, and optionally
-train+evaluate locally. When the benchmark data is present, the size sweep is
-clamped to each dataset's real image count (Super3 → just 1):
+× `{senet154, se_resnext50_32x4d}` × `UnetPlusPlus`) as a manifest + per-job configs,
+and optionally train+evaluate locally. Each encoder gets its own curve. When the
+benchmark data is present, the size sweep is clamped to each dataset's real image
+count (Super3 → just 1):
 
 ```bash
 python scripts/run_low_data.py                                  # manifest + configs only
 python scripts/run_low_data.py --dispatch local --max-jobs 2 --device cpu  # smoke
 ```
 
-**Aggregate** the low-data `eval_test.json` files into per-`(dataset, #images)`
+**Aggregate** the low-data `eval_test.json` files into per-`(dataset, encoder, #images)`
 curves and the relative-error-reduction table, optionally rendering the figure:
 
 ```bash

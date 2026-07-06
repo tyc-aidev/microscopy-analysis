@@ -1,11 +1,12 @@
-run_name: super3_low_data_unetpp_resnet50_micronet_n1
+run_name: super3_low_data_unetpp_senet154_micronet_n1
 data_root: data/benchmark_segmentation_data
 output_dir: results
 seed: 42
 
 # Sprint 3 headline: Super3 has a single training image, so this reproduces the
 # paper's extreme low-data case. Compare against the imagenet regime (same config,
-# pretraining: imagenet) to compute the relative IoU-error reduction.
+# pretraining: imagenet) to compute the relative IoU-error reduction. senet154 and
+# se_resnext50_32x4d are the two v1.0 encoders we focus the reproduction on.
 dataset:
   name: Super3
   family: super
@@ -13,7 +14,7 @@ dataset:
 
 model:
   architecture: UnetPlusPlus
-  encoder_name: resnet50
+  encoder_name: senet154
   pretraining: micronet
   num_classes: 3
 

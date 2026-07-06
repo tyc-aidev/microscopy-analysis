@@ -1,4 +1,4 @@
-"""Sprint 3 low-data ablation sweep: Super datasets x {1,2,4,8,all} train images.
+"""Sprint 3 low-data ablation sweep: Super x {1,2,4,8,all} images x SE encoders.
 
 Reproduces the paper's headline low-data finding (large relative IoU-error
 reduction from MicroNet pretraining when very few training images are available)
@@ -30,7 +30,10 @@ LOW_DATA_PRETRAININGS: tuple[str, ...] = ("imagenet", "micronet")
 # available image count per dataset at generation time when counts are known.
 DEFAULT_SIZES: tuple[int | None, ...] = (1, 2, 4, 8, None)
 
-ENCODER = "resnet50"  # paper's low-data curves use resnet50
+# The two v1.0 top-performing encoders we focus the reproduction on (matches the
+# Sprint 2 matrix): SENet-154 (~94.0% acc1) and se_resnext50_32x4d (~93.7%). Each
+# gets its own low-data curve so the encoders can be compared head to head.
+ENCODERS: tuple[str, ...] = ("senet154", "se_resnext50_32x4d")
 ARCHITECTURE = "UnetPlusPlus"
 
 
@@ -75,29 +78,30 @@ def generate_low_data_jobs(
     datasets: tuple[DatasetSpec, ...] = SUPER_DATASETS,
     sizes: tuple[int | None, ...] = DEFAULT_SIZES,
     pretrainings: tuple[str, ...] = LOW_DATA_PRETRAININGS,
-    encoder: str = ENCODER,
+    encoders: tuple[str, ...] = ENCODERS,
     seed: int = 42,
     train_counts: dict[str, int] | None = None,
 ) -> list[LowDataJob]:
-    """Cross product of datasets x resolved sizes x pretrainings (one encoder)."""
+    """Cross product of datasets x resolved sizes x encoders x pretrainings."""
     train_counts = train_counts or {}
     jobs: list[LowDataJob] = []
     for ds in datasets:
         for n in resolve_sizes(sizes, train_counts.get(ds.name)):
-            for pre in pretrainings:
-                jobs.append(
-                    LowDataJob(
-                        run_name=_run_name(ds.name, encoder, pre, n, seed),
-                        dataset_name=ds.name,
-                        dataset_family=ds.family,
-                        num_classes=ds.num_classes,
-                        architecture=ARCHITECTURE,
-                        encoder_name=encoder,
-                        pretraining=pre,
-                        train_subsample=n,
-                        seed=seed,
+            for enc in encoders:
+                for pre in pretrainings:
+                    jobs.append(
+                        LowDataJob(
+                            run_name=_run_name(ds.name, enc, pre, n, seed),
+                            dataset_name=ds.name,
+                            dataset_family=ds.family,
+                            num_classes=ds.num_classes,
+                            architecture=ARCHITECTURE,
+                            encoder_name=enc,
+                            pretraining=pre,
+                            train_subsample=n,
+                            seed=seed,
+                        )
                     )
-                )
     return jobs
 
 

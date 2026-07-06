@@ -9,6 +9,7 @@ import yaml
 
 from microscopy_analysis.orchestration.low_data import (
     DEFAULT_SIZES,
+    ENCODERS,
     LOW_DATA_PRETRAININGS,
     SUPER_DATASETS,
     generate_low_data_jobs,
@@ -25,6 +26,10 @@ def test_super_datasets_are_the_four_multiclass_benchmarks() -> None:
     assert all(d.family == "super" and d.num_classes == 3 for d in SUPER_DATASETS)
 
 
+def test_focus_encoders_are_the_two_se_encoders() -> None:
+    assert set(ENCODERS) == {"senet154", "se_resnext50_32x4d"}
+
+
 def test_resolve_sizes_clamps_and_dedupes_with_known_count() -> None:
     # Super3 has a single training image -> the whole sweep collapses to {1}.
     assert resolve_sizes(DEFAULT_SIZES, 1) == [1]
@@ -39,17 +44,25 @@ def test_resolve_sizes_without_count_keeps_none_sentinel() -> None:
     assert resolve_sizes((4, 2), None) == [2, 4]
 
 
-def test_generate_jobs_covers_sizes_and_regimes() -> None:
+def test_generate_jobs_covers_sizes_encoders_and_regimes() -> None:
     counts = {"Super1": 10, "Super2": 4, "Super3": 1, "Super4": 4}
     jobs = generate_low_data_jobs(train_counts=counts)
     # sizes per dataset: Super1 {1,2,4,8,10}=5, Super2/4 {1,2,4}=3, Super3 {1}=1.
     expected_sizes = 5 + 3 + 1 + 3
-    assert len(jobs) == expected_sizes * len(LOW_DATA_PRETRAININGS)
+    assert len(jobs) == expected_sizes * len(ENCODERS) * len(LOW_DATA_PRETRAININGS)
     assert len({j.run_name for j in jobs}) == len(jobs)  # unique run names
     assert {j.pretraining for j in jobs} == set(LOW_DATA_PRETRAININGS)
-    # Super3's single job pair uses the whole (1-image) split.
+    assert {j.encoder_name for j in jobs} == set(ENCODERS)
+    # Super3's jobs (one per encoder x regime) all use the whole 1-image split.
     super3 = [j for j in jobs if j.dataset_name == "Super3"]
     assert {j.train_subsample for j in super3} == {1}
+    assert len(super3) == len(ENCODERS) * len(LOW_DATA_PRETRAININGS)
+
+
+def test_custom_encoders_are_honoured() -> None:
+    jobs = generate_low_data_jobs(encoders=("senet154",), train_counts={"Super3": 1})
+    super3 = [j for j in jobs if j.dataset_name == "Super3"]
+    assert {j.encoder_name for j in super3} == {"senet154"}
 
 
 def test_run_name_encodes_size_and_all_label() -> None:

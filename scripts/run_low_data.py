@@ -19,6 +19,7 @@ from pathlib import Path
 from microscopy_analysis.data.dataset_adapter import list_sample_pairs
 from microscopy_analysis.orchestration.low_data import (
     DEFAULT_SIZES,
+    ENCODERS,
     LOW_DATA_PRETRAININGS,
     SUPER_DATASETS,
     generate_low_data_jobs,
@@ -47,7 +48,12 @@ def parse_args() -> argparse.Namespace:
         default=list(LOW_DATA_PRETRAININGS),
         help="Pretraining regimes to compare (default: imagenet micronet)",
     )
-    parser.add_argument("--encoder", default="resnet50")
+    parser.add_argument(
+        "--encoders",
+        nargs="+",
+        default=list(ENCODERS),
+        help="Encoders to sweep, each gets its own curve (default: senet154 se_resnext50_32x4d)",
+    )
     parser.add_argument("--dispatch", choices=("none", "local"), default="none")
     parser.add_argument("--device", default="auto", choices=("auto", "cuda", "mps", "cpu"))
     parser.add_argument("--max-jobs", type=int, default=None, help="Cap dispatched jobs (smoke run)")
@@ -84,7 +90,7 @@ def main() -> int:
     jobs = generate_low_data_jobs(
         sizes=_parse_sizes(args.sizes),
         pretrainings=tuple(args.pretrainings),
-        encoder=args.encoder,
+        encoders=tuple(args.encoders),
         seed=args.seed,
         train_counts=train_counts,
     )

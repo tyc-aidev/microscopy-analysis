@@ -5,7 +5,7 @@ with ``train_subsample`` = the number of training images the checkpoint saw) and
 builds the paper's headline artefacts:
 
 - **Learning curves**: test IoU as a function of training-set size, per
-  (dataset, pretraining regime).
+  (dataset, encoder, pretraining regime).
 - **Relative IoU-error reduction**: how much of ImageNet's residual error MicroNet
   eliminates at each training-set size — the paper's headline metric (~72% at a
   single training image).
@@ -34,6 +34,7 @@ class RunPoint:
 @dataclass(frozen=True)
 class LowDataRow:
     dataset_name: str
+    encoder_name: str
     n_train: int
     imagenet: float | None
     micronet: float | None
@@ -85,29 +86,29 @@ def load_low_data_scores(results_dir: Path, *, split: str = "test") -> list[RunP
     return points
 
 
-def build_curves(points: list[RunPoint]) -> dict[tuple[str, str], list[tuple[int, float]]]:
-    """Group points into ``(dataset, pretraining) -> [(n_train, iou), ...]`` sorted by n.
+def build_curves(points: list[RunPoint]) -> dict[tuple[str, str, str], list[tuple[int, float]]]:
+    """Group points into ``(dataset, encoder, pretraining) -> [(n_train, iou), ...]``.
 
-    Repeated ``(dataset, pretraining, n_train)`` points (e.g. multiple seeds) are
-    averaged so each training-set size contributes a single curve point.
+    Keyed by encoder so each encoder gets its own curve. Repeated points at the
+    same size (e.g. multiple seeds) are averaged into a single curve point.
     """
-    grouped: dict[tuple[str, str], dict[int, list[float]]] = defaultdict(lambda: defaultdict(list))
+    grouped: dict[tuple[str, str, str], dict[int, list[float]]] = defaultdict(lambda: defaultdict(list))
     for p in points:
-        grouped[(p.dataset_name, p.pretraining)][p.n_train].append(p.score)
-    curves: dict[tuple[str, str], list[tuple[int, float]]] = {}
+        grouped[(p.dataset_name, p.encoder_name, p.pretraining)][p.n_train].append(p.score)
+    curves: dict[tuple[str, str, str], list[tuple[int, float]]] = {}
     for key, by_n in grouped.items():
         curves[key] = [(n, round(sum(v) / len(v), 6)) for n, v in sorted(by_n.items())]
     return curves
 
 
 def build_low_data_rows(points: list[RunPoint]) -> list[LowDataRow]:
-    """Pivot to per-(dataset, n_train) ImageNet-vs-MicroNet rows with error reduction."""
-    by_key: dict[tuple[str, int], dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
+    """Pivot to per-(dataset, encoder, n_train) ImageNet-vs-MicroNet error-reduction rows."""
+    by_key: dict[tuple[str, str, int], dict[str, list[float]]] = defaultdict(lambda: defaultdict(list))
     for p in points:
-        by_key[(p.dataset_name, p.n_train)][p.pretraining].append(p.score)
+        by_key[(p.dataset_name, p.encoder_name, p.n_train)][p.pretraining].append(p.score)
 
     rows: list[LowDataRow] = []
-    for (dataset, n_train), regimes in sorted(by_key.items()):
+    for (dataset, encoder, n_train), regimes in sorted(by_key.items()):
         mean = {r: sum(v) / len(v) for r, v in regimes.items()}
         imagenet = mean.get("imagenet")
         micronet = mean.get("micronet")
@@ -120,6 +121,7 @@ def build_low_data_rows(points: list[RunPoint]) -> list[LowDataRow]:
         rows.append(
             LowDataRow(
                 dataset_name=dataset,
+                encoder_name=encoder,
                 n_train=n_train,
                 imagenet=round(imagenet, 6) if imagenet is not None else None,
                 micronet=round(micronet, 6) if micronet is not None else None,
@@ -130,17 +132,18 @@ def build_low_data_rows(points: list[RunPoint]) -> list[LowDataRow]:
     return rows
 
 
-def summarize(rows: list[LowDataRow], curves: dict[tuple[str, str], list[tuple[int, float]]]) -> dict:
+def summarize(rows: list[LowDataRow], curves: dict[tuple[str, str, str], list[tuple[int, float]]]) -> dict:
     """Sprint 3 exit-criteria tally: min-n MicroNet advantage + curve monotonicity."""
-    # Smallest training-set size per dataset (the low-data extreme).
-    min_n: dict[str, int] = {}
+    # Smallest training-set size per (dataset, encoder) — the low-data extreme.
+    min_n: dict[tuple[str, str], int] = {}
     for r in rows:
-        if r.dataset_name not in min_n or r.n_train < min_n[r.dataset_name]:
-            min_n[r.dataset_name] = r.n_train
+        key = (r.dataset_name, r.encoder_name)
+        if key not in min_n or r.n_train < min_n[key]:
+            min_n[key] = r.n_train
     reduction_at_min_n = {
-        r.dataset_name: r.rel_error_reduction
+        f"{r.dataset_name}/{r.encoder_name}": r.rel_error_reduction
         for r in rows
-        if r.n_train == min_n.get(r.dataset_name) and r.rel_error_reduction is not None
+        if r.n_train == min_n.get((r.dataset_name, r.encoder_name)) and r.rel_error_reduction is not None
     }
     reductions = list(reduction_at_min_n.values())
 
@@ -169,17 +172,18 @@ def write_low_data_csv(rows: list[LowDataRow], path: Path) -> Path:
     with path.open("w", newline="") as fh:
         writer = csv.writer(fh)
         writer.writerow(
-            ["dataset", "n_train", "imagenet_iou", "micronet_iou", "delta", "rel_error_reduction"]
+            ["dataset", "encoder", "n_train", "imagenet_iou", "micronet_iou", "delta", "rel_error_reduction"]
         )
         for r in rows:
             writer.writerow(
-                [r.dataset_name, r.n_train, r.imagenet, r.micronet, r.delta, r.rel_error_reduction]
+                [r.dataset_name, r.encoder_name, r.n_train, r.imagenet, r.micronet, r.delta,
+                 r.rel_error_reduction]
             )
     return path
 
 
 def render_markdown(rows: list[LowDataRow], summary: dict) -> str:
-    header = ["Dataset", "# Train", "ImageNet IoU", "MicroNet IoU", "Δ", "Rel. err. reduction"]
+    header = ["Dataset", "Encoder", "# Train", "ImageNet IoU", "MicroNet IoU", "Δ", "Rel. err. reduction"]
     lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
     fmt = lambda v: "—" if v is None else f"{v:.4f}"  # noqa: E731
     pct = lambda v: "—" if v is None else f"{v * 100:.1f}%"  # noqa: E731
@@ -187,8 +191,8 @@ def render_markdown(rows: list[LowDataRow], summary: dict) -> str:
         lines.append(
             "| "
             + " | ".join(
-                [r.dataset_name, str(r.n_train), fmt(r.imagenet), fmt(r.micronet), fmt(r.delta),
-                 pct(r.rel_error_reduction)]
+                [r.dataset_name, r.encoder_name, str(r.n_train), fmt(r.imagenet), fmt(r.micronet),
+                 fmt(r.delta), pct(r.rel_error_reduction)]
             )
             + " |"
         )
@@ -209,9 +213,12 @@ def render_markdown(rows: list[LowDataRow], summary: dict) -> str:
 
 
 def plot_curves(
-    curves: dict[tuple[str, str], list[tuple[int, float]]], path: Path, *, title: str = "Low-data IoU curves"
+    curves: dict[tuple[str, str, str], list[tuple[int, float]]],
+    path: Path,
+    *,
+    title: str = "Low-data IoU curves",
 ) -> Path:
-    """Render test IoU vs #training-images (one line per dataset/regime) to ``path``."""
+    """Render test IoU vs #training-images (one line per dataset/encoder/regime)."""
     import matplotlib
 
     matplotlib.use("Agg")  # headless
@@ -219,12 +226,12 @@ def plot_curves(
 
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig, ax = plt.subplots(figsize=(7, 5))
-    for (dataset, pretraining), series in sorted(curves.items()):
+    fig, ax = plt.subplots(figsize=(8, 5))
+    for (dataset, encoder, pretraining), series in sorted(curves.items()):
         xs = [n for n, _ in series]
         ys = [iou for _, iou in series]
         style = "-o" if pretraining == "micronet" else "--s"
-        ax.plot(xs, ys, style, label=f"{dataset} · {pretraining}")
+        ax.plot(xs, ys, style, label=f"{dataset} · {encoder} · {pretraining}")
     ax.set_xlabel("# training images")
     ax.set_ylabel("Test IoU")
     ax.set_title(title)
