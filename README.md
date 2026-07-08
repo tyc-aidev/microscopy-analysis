@@ -399,7 +399,8 @@ matrix on CUDA is [#40](https://github.com/tyc-aidev/microscopy-analysis/issues/
 Sprint 3 reproduces the paper's headline low-data finding — the large relative
 IoU-**error** reduction from MicroNet pretraining when very few training images
 are available — by sweeping the training-set size on the Super benchmarks and
-comparing MicroNet vs ImageNet.
+comparing both MicroNet-pretrained regimes (`micronet` = MicroNet-only,
+`image-micronet` = ImageNet then MicroNet) against the ImageNet baseline.
 
 Training runs honour a deterministic, seeded `train_subsample` cap (val/test are
 never capped), so `{1, 2, 4, 8, all}`-image runs use reproducible, comparable
@@ -409,11 +410,12 @@ subsets. A single-image config is provided:
 python scripts/train.py --config configs/experiments/super3_low_data.yaml
 ```
 
-**Generate** the low-data sweep (Super1–4 × `{1,2,4,8,all}` × `{imagenet, micronet}`
-× `{senet154, se_resnext50_32x4d}` × `UnetPlusPlus`) as a manifest + per-job configs,
-and optionally train+evaluate locally. Each encoder gets its own curve. When the
-benchmark data is present, the size sweep is clamped to each dataset's real image
-count (Super3 → just 1):
+**Generate** the low-data sweep (Super1–4 × `{1,2,4,8,all}` ×
+`{imagenet, micronet, image-micronet}` × `{senet154, se_resnext50_32x4d}` ×
+`UnetPlusPlus`) as a manifest + per-job configs, and optionally train+evaluate
+locally. Each encoder/regime gets its own curve, and both MicroNet variants are
+scored against the ImageNet baseline. When the benchmark data is present, the size
+sweep is clamped to each dataset's real image count (Super3 → just 1):
 
 ```bash
 python scripts/run_low_data.py                                  # manifest + configs only

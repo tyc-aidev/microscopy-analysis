@@ -119,22 +119,39 @@ def test_build_rows_and_summary(tmp_path: Path) -> None:
     points = load_low_data_scores(tmp_path)
     rows = build_low_data_rows(points)
     by_n = {r.n_train: r for r in rows}
+    assert {r.pretraining for r in rows} == {"micronet"}
     assert by_n[1].delta == 0.45
     # (0.75 - 0.30) / (1 - 0.30) = 0.642857
     assert by_n[1].rel_error_reduction == round(0.45 / 0.70, 6)
 
     curves = build_curves(points)
     summary = summarize(rows, curves)
-    assert summary["reduction_at_min_n"]["Super1/senet154"] == round(0.45 / 0.70, 6)
+    assert summary["reduction_at_min_n"]["Super1/senet154/micronet"] == round(0.45 / 0.70, 6)
     assert summary["max_reduction_at_min_n"] == round(0.45 / 0.70, 6)
     # Both regimes' IoU rises with more data -> fully monotonic.
     assert summary["monotonic_fraction"] == 1.0
     assert summary["monotonic_curves"] == 2
 
 
+def test_micronet_and_image_micronet_each_compared_to_imagenet(tmp_path: Path) -> None:
+    _write_eval(tmp_path, "Super1", "imagenet", 1, 0.30)
+    _write_eval(tmp_path, "Super1", "micronet", 1, 0.75)
+    _write_eval(tmp_path, "Super1", "image-micronet", 1, 0.60)
+
+    rows = build_low_data_rows(load_low_data_scores(tmp_path))
+    by_regime = {r.pretraining: r for r in rows}
+    assert set(by_regime) == {"micronet", "image-micronet"}
+    # Each MicroNet variant is scored against the shared ImageNet baseline (0.30).
+    assert by_regime["micronet"].imagenet == 0.30
+    assert by_regime["image-micronet"].imagenet == 0.30
+    assert by_regime["micronet"].rel_error_reduction == round(0.45 / 0.70, 6)
+    assert by_regime["image-micronet"].rel_error_reduction == round(0.30 / 0.70, 6)
+
+
 def test_write_csv_and_markdown(tmp_path: Path) -> None:
     _write_eval(tmp_path, "Super1", "imagenet", 1, 0.30)
     _write_eval(tmp_path, "Super1", "micronet", 1, 0.75)
+    _write_eval(tmp_path, "Super1", "image-micronet", 1, 0.60)
     points = load_low_data_scores(tmp_path)
     rows = build_low_data_rows(points)
     out = write_low_data_csv(rows, tmp_path / "curves.csv")
@@ -143,9 +160,11 @@ def test_write_csv_and_markdown(tmp_path: Path) -> None:
     assert reader[0]["dataset"] == "Super1"
     assert reader[0]["encoder"] == "senet154"
     assert reader[0]["n_train"] == "1"
+    assert {row["regime"] for row in reader} == {"micronet", "image-micronet"}
 
     md = render_markdown(rows, summarize(rows, build_curves(points)))
-    assert "Encoder" in md and "Rel. err. reduction" in md and "%" in md
+    assert "Encoder" in md and "Regime" in md and "Rel. err. reduction" in md and "%" in md
+    assert "image-micronet" in md
 
 
 def test_plot_curves_writes_png(tmp_path: Path) -> None:

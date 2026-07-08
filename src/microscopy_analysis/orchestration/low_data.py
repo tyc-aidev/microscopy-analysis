@@ -22,9 +22,11 @@ from .matrix import DATASETS, DatasetSpec
 # is the paper's extreme case with a single training image.
 SUPER_DATASETS: tuple[DatasetSpec, ...] = tuple(d for d in DATASETS if d.family == "super")
 
-# The headline comparison is MicroNet vs ImageNet pretraining. Pass all four
-# regimes explicitly to widen the sweep (random / image-micronet baselines).
-LOW_DATA_PRETRAININGS: tuple[str, ...] = ("imagenet", "micronet")
+# ImageNet baseline plus both MicroNet-pretrained variants: ``micronet`` (encoder
+# trained on MicroNet only) and ``image-micronet`` (ImageNet then MicroNet). Each
+# MicroNet variant is compared against the ImageNet baseline. Add ``random`` to
+# widen the sweep further.
+LOW_DATA_PRETRAININGS: tuple[str, ...] = ("imagenet", "micronet", "image-micronet")
 
 # ``None`` marks the full training split ("all"); numeric caps are clamped to the
 # available image count per dataset at generation time when counts are known.
