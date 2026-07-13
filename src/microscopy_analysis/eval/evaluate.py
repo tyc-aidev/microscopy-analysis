@@ -53,6 +53,9 @@ class EvalResult:
     score: float  # foreground IoU (binary) or mean IoU (multiclass) — paper headline
     created_at_utc: str
     metrics_path: str = ""
+    # Low-data ablation (Sprint 3): number of training images the checkpoint saw
+    # (None = full split). Lets the low-data analysis place this run on the curve.
+    train_subsample: int | None = None
     extra: dict = field(default_factory=dict)
 
 
@@ -151,6 +154,7 @@ def evaluate_run(
         mean_iou=round(metric.mean(), 6),
         score=round(metric.score(), 6),
         created_at_utc=datetime.now(UTC).isoformat(),
+        train_subsample=config.train_subsample,
     )
 
     if write:

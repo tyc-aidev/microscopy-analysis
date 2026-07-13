@@ -169,6 +169,22 @@ def test_run_training_trains_and_writes_real_outputs(tmp_path: Path, monkeypatch
     assert result.best_score > 0.0
 
 
+def test_train_subsample_limits_training_images(tmp_path: Path, monkeypatch) -> None:
+    _make_super_split(tmp_path, "train", n=6)
+    _make_super_split(tmp_path, "val", n=2)
+    monkeypatch.setattr(
+        "microscopy_analysis.train.trainer.create_segmentation_model",
+        lambda *a, **k: _TinyModel(num_classes=3),
+    )
+    cfg = replace(_tiny_config(tmp_path), train_subsample=2)
+    result = run_training(cfg, device_preference="cpu")
+    # Low-data cap: only 2 of the 6 training images are used; val is untouched.
+    assert result.num_samples == 2
+    assert result.num_val_samples == 2
+    summary = json.loads(Path(result.summary_path).read_text())
+    assert summary["num_samples"] == 2
+
+
 def test_run_training_binary_ebc_path(tmp_path: Path, monkeypatch) -> None:
     image_dir = tmp_path / "EBC1" / "train"
     annot_dir = tmp_path / "EBC1" / "train_annot"

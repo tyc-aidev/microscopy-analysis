@@ -7,7 +7,13 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from microscopy_analysis.data.dataset_adapter import decode_ebc_mask, decode_super_mask, list_sample_pairs
+from microscopy_analysis.data.dataset_adapter import (
+    SamplePair,
+    decode_ebc_mask,
+    decode_super_mask,
+    list_sample_pairs,
+    subsample_pairs,
+)
 
 
 def _make_super_fixture(tmp_path: Path) -> Path:
@@ -65,4 +71,26 @@ def test_ebc_pairs_and_decode(tmp_path: Path) -> None:
     decoded = decode_ebc_mask(pairs[0].mask_path, positive_values=(1,))
     assert decoded.shape == (3, 3)
     assert int(decoded.sum()) == 2
+
+
+def _fake_pairs(n: int) -> list[SamplePair]:
+    return [SamplePair(Path(f"img_{i}.tif"), Path(f"img_{i}_mask.tif")) for i in range(n)]
+
+
+def test_subsample_pairs_is_deterministic_and_seed_dependent() -> None:
+    pairs = _fake_pairs(10)
+    a = subsample_pairs(pairs, 4, seed=42)
+    b = subsample_pairs(pairs, 4, seed=42)
+    c = subsample_pairs(pairs, 4, seed=7)
+    assert len(a) == 4
+    assert a == b  # same seed -> same subset, same order
+    assert a != c  # different seed picks a different subset
+    assert a == sorted(a, key=lambda p: p.image_path.name)  # stable path order
+
+
+def test_subsample_pairs_returns_all_for_none_or_oversized() -> None:
+    pairs = _fake_pairs(3)
+    assert subsample_pairs(pairs, None) == pairs
+    assert subsample_pairs(pairs, 0) == pairs
+    assert subsample_pairs(pairs, 5) == pairs  # n >= len -> full split unchanged
 

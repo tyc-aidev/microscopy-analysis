@@ -394,6 +394,46 @@ Writes `results/benchmark_matrix.csv` and prints a markdown table plus the major
 summary (the Sprint 2 exit criterion). Populating paper baselines + running the full
 matrix on CUDA is [#40](https://github.com/tyc-aidev/microscopy-analysis/issues/40).
 
+## Sprint 3 CLI (low-data ablations)
+
+Sprint 3 reproduces the paper's headline low-data finding — the large relative
+IoU-**error** reduction from MicroNet pretraining when very few training images
+are available — by sweeping the training-set size on the Super benchmarks and
+comparing both MicroNet-pretrained regimes (`micronet` = MicroNet-only,
+`image-micronet` = ImageNet then MicroNet) against the ImageNet baseline.
+
+Training runs honour a deterministic, seeded `train_subsample` cap (val/test are
+never capped), so `{1, 2, 4, 8, all}`-image runs use reproducible, comparable
+subsets. A single-image config is provided:
+
+```bash
+python scripts/train.py --config configs/experiments/super3_low_data.yaml
+```
+
+**Generate** the low-data sweep (Super1–4 × `{1,2,4,8,all}` ×
+`{imagenet, micronet, image-micronet}` × `{senet154, se_resnext50_32x4d}` ×
+`UnetPlusPlus`) as a manifest + per-job configs, and optionally train+evaluate
+locally. Each encoder/regime gets its own curve, and both MicroNet variants are
+scored against the ImageNet baseline. When the benchmark data is present, the size
+sweep is clamped to each dataset's real image count (Super3 → just 1):
+
+```bash
+python scripts/run_low_data.py                                  # manifest + configs only
+python scripts/run_low_data.py --dispatch local --max-jobs 2 --device cpu  # smoke
+```
+
+**Aggregate** the low-data `eval_test.json` files into per-`(dataset, encoder, #images)`
+curves and the relative-error-reduction table, optionally rendering the figure:
+
+```bash
+python scripts/aggregate_low_data.py --plot
+```
+
+Writes `results/low_data_curves.csv` (+ `results/low_data_curves.png`) and prints
+the MicroNet-vs-ImageNet relative IoU-error-reduction table plus the Sprint 3 exit
+criteria (min-image MicroNet advantage and curve monotonicity). The relative error
+reduction is `(IoU_micronet − IoU_imagenet) / (1 − IoU_imagenet)`.
+
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).

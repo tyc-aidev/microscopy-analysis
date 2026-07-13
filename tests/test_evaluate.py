@@ -90,6 +90,16 @@ def test_evaluate_run_writes_json_and_scores_separable_super(tmp_path: Path) -> 
     assert payload["dataset_name"] == "Super1"
     assert payload["pretraining"] == "micronet"
     assert payload["metrics_path"].endswith("eval_test.json")
+    assert payload["train_subsample"] is None  # full split by default
+
+
+def test_evaluate_run_records_train_subsample(tmp_path: Path) -> None:
+    _make_super_split(tmp_path, "test", n=2)
+    cfg = _cfg(tmp_path, train_subsample=1)
+    result = evaluate_run(cfg, split="test", model=_TinyModel(num_classes=3), device_preference="cpu")
+    assert result.train_subsample == 1
+    payload = json.loads((cfg.output_dir / "eval_test.json").read_text())
+    assert payload["train_subsample"] == 1
 
 
 def test_evaluate_run_binary_ebc_scores_two_rows(tmp_path: Path) -> None:
