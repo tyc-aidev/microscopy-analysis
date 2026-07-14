@@ -53,6 +53,7 @@ Turn the current research monorepo (browse NASA benchmarks → train MicroNet-ba
 flowchart TB
   subgraph clients [Clients]
     Web["Web App (React)"]
+    Napari["napari + Amat plugin"]
     CLI["Amat CLI"]
     Agents["Agents / MCP / Copilot"]
     Partners["LIMS / MES / PLM"]
@@ -136,7 +137,7 @@ Map from today’s code → SaaS modules.
 |---|---|---|
 | **Ingest & Transfer** | Resumable upload, watch-folder/S3 events, instrument metadata, pairing dry-run | `explorer/lib/{index,catalog,coco,masks}.py` |
 | **Samples & Taxonomies** | LIMS sample ids, class schemas, colors/hatch, mask encodings | catalog.json + adapters |
-| **Viewer / Annotation** | Overlay workbench, assistive mask correction, CVAT deep-link, review queues | Streamlit Benchmarks / Instance pages |
+| **Viewer / Annotation** | Web overlay workbench + **[napari](https://napari.org/stable/)** desktop (multi-dim explore/annotate) + review queues | Streamlit Benchmarks / Instance pages |
 | **Dataset QC** | Blocking pairing checks, histograms, split imbalance, `ready` gate | `explorer/lib/stats.py`, adapters |
 | **Training Studio** | Config-driven train, **Matrix** sweeps, live run telemetry | `src/microscopy_analysis/train/*`, `orchestration/*` |
 | **Model Registry** | Weights, cards, encoder pin, dual-control gates, evidence packs | `models/{factory,weights}.py` + checkpoints |
@@ -144,7 +145,7 @@ Map from today’s code → SaaS modules.
 | **Inference & Measurements** | Patch infer (512/256), batch/edge, area/thickness/crack metrics in µm | `eval/predictions.py` |
 | **Orchestration** | Queues, cancel/resume, fair-share, automations (non-chat rules) | `orchestration/matrix.py` |
 | **Notify** | In-app, email, Slack/Teams; gate/review/job/SLA events | New |
-| **Integrations** | REST/gRPC, webhooks, LIMS/MES, SSO | New |
+| **Integrations** | REST/gRPC, webhooks, LIMS/MES, SSO, **napari plugin** | New |
 | **Agent Runtime** | MCP tools (incl. ingest + watch_job), policy sandbox, transcripts | New |
 | **Admin / Ops / Compliance** | RBAC, audit, quotas, **ops console**, residency, BYOK, classification | New |
 
@@ -161,6 +162,7 @@ packages/
   domain/              # Datasets, masks, metrics (pure Python — keep from src/)
   ml-runtime/          # torch/smp wrappers
   policy/              # RBAC + approval rules
+  napari-plugin/       # amat-napari (npe2) — desktop viewer/annotator
   sdks/
     python/
     typescript/
@@ -170,6 +172,39 @@ infra/
 ```
 
 Keep **domain logic framework-agnostic** so Streamlit can remain a thin internal prototype while the product UI moves to React.
+
+### 5.2 napari integration (scientific viewer / annotator)
+
+[napari](https://napari.org/stable/) is a fast, interactive Python viewer for multi-dimensional images with overlay/annotation of segmentations, points, and polygons on NumPy/Zarr arrays. For materials microscopy it is a better **power-user** surface than a generic web labeler: large TIFFs, z-stacks, side-by-side GT vs prediction layers, and scriptable QC.
+
+**Role in Amat (not a replacement for the web app):**
+
+| Surface | Job |
+|---|---|
+| **Web overlay workbench** | Review at scale, gates, share links, light assistive correction |
+| **napari + Amat plugin** | Deep explore, multi-dim stacks, precise mask edit, scientist-local GPU/CPU |
+| **CVAT (optional)** | High-volume outsourced labeling farms only |
+
+**Integration shape:**
+
+```mermaid
+flowchart LR
+  Web["Amat Web"] -->|"Open in napari"| DeepLink["amat:// or CLI handoff"]
+  DeepLink --> Plugin["amat-napari plugin"]
+  Plugin -->|OIDC device / PAT| API["Amat API"]
+  API --> Obj["Object store tiles / masks"]
+  Plugin -->|"push ReviewTask / new DatasetVersion"| API
+  Agents["MCP agent"] -->|"export_napari_bundle"| Plugin
+```
+
+1. **`amat-napari` plugin** (npe2) — auth to workspace; browse Samples/Datasets; load image + GT + prediction as layers; edit Labels/Shapes; submit as review correction or new dataset version.  
+2. **Deep link / CLI** — From web tile or review task: `amat napari open --tile …` or `amat://tile/{id}` launches local napari with layers preloaded.  
+3. **Layer contract** — Canonical names: `image`, `gt`, `prediction`, `review_mask`; class colors from Taxonomy; scale from `µm_per_px` (G27) so napari scale bar matches metrology.  
+4. **Artifact round-trip** — Edits write content-addressed mask objects; never mutate an immutable `DatasetVersion` (G8).  
+5. **Air-gap** — Plugin talks only to local/VPC API; no napari.org dependency at runtime; optional bundled plugin wheel in appliance image (pairs with G25).  
+6. **Agents** — Tools `export_napari_bundle` / `open_review_in_napari` return a signed bundle URI + launch hint; agents do not drive the napari GUI.
+
+**Non-goals for napari:** multi-tenant RBAC UI, promotion gates, billing, or being the only annotator for non-Python users (web remains mandatory).
 
 ---
 
@@ -223,6 +258,7 @@ Amat
 │   └── Taxonomies
 ├── Studio
 │   ├── Annotate / Review
+│   ├── Open in napari
 │   ├── Train
 │   ├── Experiments
 │   └── Compare
@@ -269,7 +305,7 @@ Amat
 Full-bleed recent micrograph strip as the visual plane; brand “Amat” as hero mark; one headline (“Ni-superalloy γ′ segmentation”); one CTA (“Open review queue”). No stat strip in first viewport.
 
 **2. Overlay workbench**  
-Dominant image canvas edge-to-edge; thin right rail for class legend, opacity, split; filmstrip bottom. Not a card layout.
+Dominant image canvas edge-to-edge; thin right rail for class legend, opacity, split; filmstrip bottom. Not a card layout. Primary escape hatch: **Open in napari** (deep link / CLI) for multi-dim or precise edit.
 
 **3. Experiment compare**  
 Side-by-side overlays + linked IoU table; filters for encoder / pretrain / seed. One job: decide which candidate advances.
@@ -377,6 +413,7 @@ Denied calls return machine-readable `PolicyDenial` so agents can escalate inste
 
 | System | Integration |
 |---|---|
+| **napari** | [`amat-napari`](https://napari.org/stable/) plugin: load tiles/masks/predictions as layers; push review corrections / new dataset versions; deep link from web (§5.2) |
 | LIMS | Push/pull sample IDs; attach mask artifacts to records |
 | MES / QMS | Model version used on production lot |
 | PLM | Link microstructure findings to part revisions |
@@ -412,7 +449,7 @@ All responses include `request_id`, resource ETag, and content digests where app
 |---|---|---|
 | **M0 — Domain extract** | Adapters, masks, metrics, factory, **calibration helpers** | Already mostly in `src/` + `explorer/lib/` |
 | **M1 — Job API + workers** | Upload sessions, QC gate, immutable dataset versions, cancel/events, Matrix | Replaces local `results/`; see G1–G4, G8–G9, G11–G13 |
-| **M2 — Web UI v1** | Overlay workbench, review queue, Samples, Notify, ops console | Retire Streamlit as customer face; keep for R&D |
+| **M2 — Web UI v1** | Overlay workbench, review queue, Samples, Notify, ops console, **napari deep-link + `amat-napari` plugin v0** | Retire Streamlit as customer face; keep for R&D |
 | **M3 — Registry + gates** | Dual-control promotion, evidence pack, measurements | Encoder pin + eval digest mandatory |
 | **M4 — Agent/MCP + Automations** | Tool parity incl. ingest/watch; rule engine | Policy + Notify required before high-risk tools |
 | **M5 — Enterprise pack** | SSO, VPC, BYOK, classification, LIMS/MES, offline weights | Sales-blocking for Fortune accounts |
@@ -472,7 +509,7 @@ Stories below are walked against §§4–10. **Pass** = design already covers th
 | Step | Design coverage | Verdict |
 |---|---|---|
 | Flag tiles for review | Review copilot “suggests tiles” | **G6** — no review queue entity, assignment, or tile `label_status` |
-| Edit masks | Annotate / Review in IA; annotation depth open (§16) | **G7** — must decide: built-in editor vs CVAT; stories need *some* write path in M2 |
+| Edit masks | Annotate / Review; napari for precise/multi-dim | **G7** — resolved: web assistive + **napari plugin** as primary scientific editor; CVAT optional for farms |
 | Dataset version bump | “Datasets (versioned)” mentioned once | **G8** — no immutability rules: train must pin `dataset_version`; edits create new version |
 | Compare old vs new run on same hold-out | Experiment compare | Pass — **G9** require frozen **eval split digest** so hold-out cannot drift |
 | Notify Chen of review request | — | **G10** — no notifications channel (email/Slack/in-app) |
@@ -592,7 +629,7 @@ Stories below are walked against §§4–10. **Pass** = design already covers th
 | **G4** | Live run telemetry | High | `GET /runs/{id}/events` (SSE/websocket); Run Timeline UI under Studio. | M1–M2 |
 | **G5** | Share & comments | Medium | Read-only share links (time-boxed); tile/thread comments; `viewer` role. | M2 |
 | **G6** | Review queue | High | `ReviewTask` on tiles (`unlabeled\|needs_review\|approved`); assignment; queue UI. | M2 |
-| **G7** | Annotation write path | High | **Decision:** M2 ships **assistive correction** (brush/polygon on existing masks) + optional CVAT deep-link for heavy labeling; full labeler is M3+ if needed. | M2 |
+| **G7** | Annotation write path | High | **Decision:** M2 ships web **assistive correction** + **[napari](https://napari.org/stable/) `amat-napari` plugin** for scientific edit/explore; CVAT deep-link only for outsourced farms. | M2 |
 | **G8** | Dataset immutability | Critical | Dataset versions immutable once `ready`; edits → new version; `ExperimentSpec.dataset_version` required. | M1 |
 | **G9** | Frozen eval split | Critical | `EvalSplitDigest` stored on experiment; promotion gate fails if eval data changed. | M1–M3 |
 | **G10** | Notifications | High | **Notify** module: in-app + email + Slack/Teams webhooks; events for review, gate, job fail, SLA. | M2 |
@@ -650,6 +687,8 @@ POST   /v1/automations                            # G19
 GET    /v1/ops/queue-stats                        # G20
 GET    /v1/samples                                # G26
 POST   /v1/inference/{job}/measurements           # G28
+POST   /v1/tiles/{id}/napari-session              # §5.2 deep-link payload
+GET    /v1/napari/bundles/{id}                    # signed layer bundle for plugin
 ```
 
 ### Amended MCP tools
@@ -662,30 +701,33 @@ POST   /v1/inference/{job}/measurements           # G28
 | `cancel_job` / `watch_job` | G13, G22 |
 | `list_review_tasks` / `submit_review` | G6 |
 | `get_evidence_pack` | G18 |
+| `export_napari_bundle` / `create_napari_session` | §5.2 (scientist/agent handoff to desktop viewer) |
 
 ---
 
 ## 16. Open design decisions
 
-1. **Annotation depth** — Resolved for M2: assistive in-app correction + optional CVAT; revisit full labeler after design partners.  
+1. **Annotation depth** — Resolved: web assistive correction + **napari** as primary scientific editor ([napari.org](https://napari.org/stable/)); CVAT optional for labeling farms.  
 2. **Compute fabric** — K8s Jobs vs Ray vs cloud batch (AWS Batch / Vertex)?  
 3. **Edge inference** — Sidecar on SEM PCs vs central batch only for v1?  
 4. **Brand lock** — Confirm **Amat** vs product rename before UI implementation.  
-5. **Multi-modal later** — EDS/EBSD channels as first-class tensors vs RGB-only v1?  
+5. **Multi-modal later** — EDS/EBSD channels as first-class tensors vs RGB-only v1? (napari layers favor multi-dim early.)  
 6. **Measurement pack v1** — Which metrics ship first (area fraction + thickness only vs crack morphometry)?  
-7. **Notify providers** — Build in-app+email first, or require customer Slack/Teams from day one?
+7. **Notify providers** — Build in-app+email first, or require customer Slack/Teams from day one?  
+8. **napari distribution** — Plugin in PyPI + `amat napari` CLI only, vs also shipping a branded napari bundle in the air-gap appliance?  
 
 ---
 
 ## 17. Recommended next implementation slices
 
-1. Freeze **OpenAPI + ExperimentSpec JSON Schema** including `dataset_version`, `eval_split_digest`, taxonomy ref.  
+1. Freeze **OpenAPI + ExperimentSpec JSON Schema** including `dataset_version`, `eval_split_digest`, taxonomy ref, napari layer contract.  
 2. Extract **mask pairing + metrics + calibration** into `amat-domain`.  
 3. Stand up **control plane**: dataset versions, QC jobs, upload sessions, job cancel/events.  
-4. Ship **overlay workbench + review queue** (React).  
-5. Add **Matrix** + aggregate metrics before large GPU spend.  
-6. MCP **read + watch_job** tools; defer promote/export until Notify + dual-control exist.  
-7. Introduce **Sample + µm/px** before any customer QA pilot (US-8 blocker).
+4. Ship **overlay workbench + review queue** (React) with **Open in napari** handoff.  
+5. Ship **`amat-napari` plugin v0** (load tile layers, push correction → new dataset version).  
+6. Add **Matrix** + aggregate metrics before large GPU spend.  
+7. MCP **read + watch_job + export_napari_bundle**; defer promote/export until Notify + dual-control exist.  
+8. Introduce **Sample + µm/px** before any customer QA pilot (US-8 blocker).
 
 ---
 
