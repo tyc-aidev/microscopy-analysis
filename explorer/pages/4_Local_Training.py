@@ -16,6 +16,7 @@ _bootstrap.ensure_repo_root_on_path()
 import streamlit as st
 
 from explorer.lib.prediction_panels import torch_available
+from explorer.lib.remote_results import ensure_results
 from explorer.lib.results_view import render_run_dashboard
 from explorer.lib.runs import (
     filter_runs,
@@ -30,6 +31,8 @@ st.set_page_config(page_title="Local Training", layout="wide")
 
 st.title("Local Training (Apple Silicon)")
 st.caption("Browse metrics and validation panels from local MPS/CPU training runs.")
+
+ensure_results()
 
 if torch_available():
     try:
