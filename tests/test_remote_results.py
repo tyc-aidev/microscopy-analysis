@@ -74,6 +74,13 @@ def test_resolve_results_cloud_default(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cfg.url == remote_results.PUBLIC_RESULTS_SLIM_URL
 
 
+def test_is_streamlit_cloud_helper(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("STREAMLIT_RUNTIME_ENV", raising=False)
+    assert remote_results._is_streamlit_cloud() is False
+    monkeypatch.setenv("STREAMLIT_RUNTIME_ENV", "cloud")
+    assert remote_results._is_streamlit_cloud() is True
+
+
 def test_is_results_populated(tmp_path: Path) -> None:
     assert not is_results_populated(tmp_path)
     _make_slim_run(tmp_path)

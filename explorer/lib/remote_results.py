@@ -24,7 +24,6 @@ from pathlib import Path
 from explorer.lib.remote_data import (
     READY_MARKER,
     RemoteConfig,
-    is_streamlit_cloud,
     populate_from_remote,
     _secret,
 )
@@ -36,10 +35,21 @@ PUBLIC_RESULTS_SLIM_URL = (
 )
 
 
+def _is_streamlit_cloud() -> bool:
+    """Detect Streamlit Community Cloud without importing helpers from remote_data.
+
+    Kept local so a stale Cloud deploy of ``remote_data.py`` cannot break this
+    module's import (the previous cross-import caused ImportError on Cloud).
+    """
+    if os.environ.get("STREAMLIT_RUNTIME_ENV") == "cloud":
+        return True
+    return Path("/mount/src").is_dir() and Path("/home/adminuser").exists()
+
+
 def resolve_results_remote_config() -> RemoteConfig | None:
     """Build a :class:`RemoteConfig` from ``RESULTS_ARCHIVE_URL``, or Cloud default."""
     url = _secret("RESULTS_ARCHIVE_URL")
-    if not url and is_streamlit_cloud():
+    if not url and _is_streamlit_cloud():
         url = PUBLIC_RESULTS_SLIM_URL
     if url:
         return RemoteConfig(url=url)
