@@ -4,6 +4,7 @@ pillow>=9.0
 numpy>=1.22
 matplotlib>=3.5
 pandas>=1.4
+PyYAML>=6.0
 pytest>=8.0
 # Remote dataset fetch for Streamlit Cloud (issue #17): zstd archives + private R2
 zstandard>=0.22
