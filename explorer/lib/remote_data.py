@@ -11,13 +11,12 @@ Configuration (env var or ``st.secrets``):
   ``R2_BUCKET`` + ``R2_OBJECT_KEY`` — private bucket via ``boto3``.
 * ``REMOTE_DATA_ROOT`` — extraction target (default ``/tmp/amat-data``).
 
-Remote fetching is **explicit opt-in**: if none of the above are configured,
-``ensure_data()`` returns ``None`` and the app shows its download prompt instead
-of pulling anything. On Streamlit Cloud, set ``DATA_ARCHIVE_URL`` to the public
-archive you want served (see ``README.md`` for the canonical URLs).
-
-Local development is unaffected: if ``DATA_ROOT`` already points at populated
-data, ``ensure_data()`` returns immediately without any download.
+On Streamlit Community Cloud, if nothing is configured, the public full-dataset
+archive URL is used automatically. Locally, remote fetching stays **opt-in**:
+without config, ``ensure_data()`` returns ``None`` and the app shows its
+download prompt. Local development is unaffected: if ``DATA_ROOT`` already
+points at populated data, ``ensure_data()`` returns immediately without any
+download.
 """
 
 from __future__ import annotations
@@ -37,6 +36,22 @@ from explorer.lib.index import get_data_root, is_data_populated
 DEFAULT_REMOTE_ROOT = "/tmp/amat-data"
 READY_MARKER = ".ready"
 _DOWNLOAD_CHUNK = 1 << 20  # 1 MiB
+
+# Public R2 archives (MIT NASA data). Used as Cloud defaults when secrets unset.
+PUBLIC_DATA_FULL_URL = (
+    "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst"
+)
+PUBLIC_DATA_SAMPLE_URL = (
+    "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst"
+)
+
+
+def is_streamlit_cloud() -> bool:
+    """Detect Streamlit Community Cloud (ephemeral container, no local data/)."""
+    if os.environ.get("STREAMLIT_RUNTIME_ENV") == "cloud":
+        return True
+    # Classic Community Cloud layout: repo mounted at /mount/src, user adminuser.
+    return Path("/mount/src").is_dir() and Path("/home/adminuser").exists()
 
 
 @dataclass(frozen=True)
@@ -75,6 +90,8 @@ def _secret(key: str) -> str | None:
 def resolve_remote_config() -> RemoteConfig | None:
     """Build a :class:`RemoteConfig` from env/secrets, or ``None`` if unconfigured."""
     url = _secret("DATA_ARCHIVE_URL")
+    if not url and is_streamlit_cloud():
+        url = PUBLIC_DATA_FULL_URL
     if url:
         return RemoteConfig(url=url)
 

@@ -75,7 +75,10 @@ Live app: [https://microscopy-analysis.streamlit.app/](https://microscopy-analys
 - **Entrypoint:** `explorer/app.py`
 - **Dependencies:** Cloud auto-installs from `explorer/requirements.txt` (found before any root `requirements.txt`, which is reserved for the PyTorch stack). That file re-uses the canonical `requirements-explorer.txt`.
 - **Imports:** resolved by `explorer/_bootstrap.py` — no `pip install -e .` needed (Cloud never runs `setup_env.sh`). `pyproject.toml` is ignored by Cloud and is for local installs only.
-- **Data & training results:** both are gitignored. Configure Streamlit secrets to fetch the public R2 archives at cold start (see [Deploy to Streamlit Community Cloud](#deploy-to-streamlit-community-cloud) below). Without secrets the app still loads but shows empty download prompts.
+- **Data & training results:** both are gitignored. On Community Cloud the app
+  auto-fetches the public full data + slim results archives from R2 (override via
+  secrets; see [Deploy to Streamlit Community Cloud](#deploy-to-streamlit-community-cloud)).
+  Locally, remote fetch stays opt-in — without secrets/env the app shows download prompts.
 
 ### 3. Pages
 
@@ -158,12 +161,16 @@ during download+extract; this fits Streamlit Community Cloud's ephemeral `/tmp`
 trimmed **sample** only on disk-constrained hosts. Slim results fit easily
 alongside either data archive.
 
-### 3. Configure Streamlit secrets (required for remote fetch)
+### 3. Configure Streamlit secrets (optional overrides)
 
-Remote fetching is **explicit opt-in**: with no source configured the app shows
-its download prompt and fetches nothing. To serve data and Local Training on
-Streamlit Cloud, set the public archive URLs in the app's **Settings → Secrets**,
-then **reboot the app**:
+On Streamlit Community Cloud the app **defaults** to the public full data archive
+and slim results archive above — no secrets required for the live app at
+[https://microscopy-analysis.streamlit.app/](https://microscopy-analysis.streamlit.app/).
+Locally, remote fetching stays opt-in (unset → download prompts / empty Local
+Training).
+
+To override the defaults (sample archive, private bucket, etc.), set secrets in
+**Settings → Secrets** and reboot:
 
 ```toml
 DATA_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst"
