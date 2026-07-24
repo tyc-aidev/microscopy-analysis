@@ -90,6 +90,22 @@ def test_resolve_config_unconfigured_is_none() -> None:
     assert resolve_remote_config() is None
 
 
+def test_resolve_config_cloud_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("STREAMLIT_RUNTIME_ENV", "cloud")
+    cfg = resolve_remote_config()
+    assert cfg is not None
+    assert cfg.url == remote_data.PUBLIC_DATA_FULL_URL
+
+
+def test_resolve_config_cloud_secret_overrides_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("STREAMLIT_RUNTIME_ENV", "cloud")
+    monkeypatch.setenv("DATA_ARCHIVE_URL", "https://cdn.example.com/custom.tar.zst")
+    cfg = resolve_remote_config()
+    assert cfg == RemoteConfig(url="https://cdn.example.com/custom.tar.zst")
+
+
 def test_extract_tar_gz(tmp_path: Path) -> None:
     payload = tmp_path / "payload"
     payload.mkdir()

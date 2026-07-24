@@ -9,10 +9,11 @@ Configuration (env var or ``st.secrets``):
 * ``RESULTS_ARCHIVE_URL`` — public URL to the archive (preferred).
 * ``REMOTE_RESULTS_ROOT`` — extraction target (default ``/tmp/amat-results``).
 
-Remote fetching is **explicit opt-in**: if ``RESULTS_ARCHIVE_URL`` is unset,
-``ensure_results()`` leaves ``RESULTS_ROOT`` alone. Local development is
-unaffected: if ``./results`` (or ``RESULTS_ROOT``) already has run summaries,
-nothing is downloaded.
+On Streamlit Community Cloud, if ``RESULTS_ARCHIVE_URL`` is unset, the public
+slim-results archive is used automatically. Locally, remote fetching stays
+opt-in: if unset, ``ensure_results()`` leaves ``RESULTS_ROOT`` alone. Local
+development is unaffected: if ``./results`` (or ``RESULTS_ROOT``) already has
+run summaries, nothing is downloaded.
 """
 
 from __future__ import annotations
@@ -23,17 +24,23 @@ from pathlib import Path
 from explorer.lib.remote_data import (
     READY_MARKER,
     RemoteConfig,
+    is_streamlit_cloud,
     populate_from_remote,
     _secret,
 )
 from explorer.lib.runs import get_results_root
 
 DEFAULT_REMOTE_RESULTS_ROOT = "/tmp/amat-results"
+PUBLIC_RESULTS_SLIM_URL = (
+    "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-results-slim.tar.zst"
+)
 
 
 def resolve_results_remote_config() -> RemoteConfig | None:
-    """Build a :class:`RemoteConfig` from ``RESULTS_ARCHIVE_URL``, or ``None``."""
+    """Build a :class:`RemoteConfig` from ``RESULTS_ARCHIVE_URL``, or Cloud default."""
     url = _secret("RESULTS_ARCHIVE_URL")
+    if not url and is_streamlit_cloud():
+        url = PUBLIC_RESULTS_SLIM_URL
     if url:
         return RemoteConfig(url=url)
     return None

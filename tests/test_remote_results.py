@@ -67,6 +67,13 @@ def test_resolve_results_unconfigured_is_none() -> None:
     assert resolve_results_remote_config() is None
 
 
+def test_resolve_results_cloud_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("STREAMLIT_RUNTIME_ENV", "cloud")
+    cfg = resolve_results_remote_config()
+    assert cfg is not None
+    assert cfg.url == remote_results.PUBLIC_RESULTS_SLIM_URL
+
+
 def test_is_results_populated(tmp_path: Path) -> None:
     assert not is_results_populated(tmp_path)
     _make_slim_run(tmp_path)
