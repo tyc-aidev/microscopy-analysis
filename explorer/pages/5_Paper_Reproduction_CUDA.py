@@ -15,6 +15,7 @@ _bootstrap.ensure_repo_root_on_path()
 
 import streamlit as st
 
+from explorer.lib.remote_results import ensure_results
 from explorer.lib.results_view import render_run_dashboard
 from explorer.lib.runs import (
     filter_runs,
@@ -29,6 +30,8 @@ st.set_page_config(page_title="CUDA Reproduction", layout="wide")
 
 st.title("Paper Reproduction (CUDA)")
 st.caption("Browse bit-exact reproduction runs synced from a CUDA Linux host.")
+
+ensure_results()
 
 with st.expander("Reproduction environment requirements", expanded=False):
     st.markdown(

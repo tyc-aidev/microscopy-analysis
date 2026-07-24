@@ -22,6 +22,7 @@ from explorer.lib.coco import instance_seg_root, is_instance_data_populated
 from explorer.lib.examples import examples_root, is_examples_data_populated
 from explorer.lib.index import get_data_root, is_data_populated, split_counts
 from explorer.lib.remote_data import ensure_data
+from explorer.lib.remote_results import ensure_results
 from explorer.lib.stats import (
     aggregate_class_pixels,
     class_distribution_dataframe,
@@ -45,6 +46,7 @@ def cached_class_pixel_totals(record_rows: tuple) -> dict[str, dict[str, int]]:
 
 
 ensure_data()
+ensure_results()
 
 catalog = load_catalog()
 

@@ -70,10 +70,12 @@ You only need the explorer dependencies installed (`pip install -r requirements-
 
 ### Deploy to Streamlit Community Cloud
 
+Live app: [https://microscopy-analysis.streamlit.app/](https://microscopy-analysis.streamlit.app/)
+
 - **Entrypoint:** `explorer/app.py`
 - **Dependencies:** Cloud auto-installs from `explorer/requirements.txt` (found before any root `requirements.txt`, which is reserved for the PyTorch stack). That file re-uses the canonical `requirements-explorer.txt`.
 - **Imports:** resolved by `explorer/_bootstrap.py` — no `pip install -e .` needed (Cloud never runs `setup_env.sh`). `pyproject.toml` is ignored by Cloud and is for local installs only.
-- **Data:** `data/` is gitignored, so a fresh Cloud deploy starts empty and the app shows download prompts. To ship data, point `DATA_ROOT` at a mounted volume or bake assets into the image/repo.
+- **Data & training results:** both are gitignored. Configure Streamlit secrets to fetch the public R2 archives at cold start (see [Deploy to Streamlit Community Cloud](#deploy-to-streamlit-community-cloud) below). Without secrets the app still loads but shows empty download prompts.
 
 ### 3. Pages
 
@@ -94,31 +96,40 @@ pytest tests/ -q
 
 ## Deploy to Streamlit Community Cloud
 
+Live app: [https://microscopy-analysis.streamlit.app/](https://microscopy-analysis.streamlit.app/)
+
 Streamlit Cloud never runs `setup_env.sh`/`download_data.sh` and has an ephemeral
-filesystem, so the app fetches a prepackaged dataset archive from
+filesystem, so the app fetches prepackaged archives from
 [Cloudflare R2](https://developers.cloudflare.com/r2/) at runtime
 ([#17](https://github.com/tyc-aidev/microscopy-analysis/issues/17)). R2 has **$0
 egress**, which suits Cloud re-downloading on every cold start. NASA data is MIT,
-so a public bucket is fine.
+so a public bucket is fine. Training checkpoints stay off Cloud; only slim
+metrics/summaries/prediction panels are shipped.
 
-### 1. Build the archive
+### 1. Build the archives
 
-Download data locally, then package the trimmed (Cloud) subset:
+Download data locally, then package datasets and (optionally) slim training results:
 
 ```bash
 ./scripts/download_data.sh            # or --sample for a lighter local checkout
 ./scripts/build_data_archive.sh       # --sample (default) | --full
+./scripts/build_results_archive.sh    # metrics + summaries + predictions/ only
 ```
 
-This writes `data/dist/amat-data-<mode>.tar.zst`, rooted at
+`build_data_archive.sh` writes `data/dist/amat-data-<mode>.tar.zst`, rooted at
 `benchmark_segmentation_data/`, `instance_segmentation/`, and `examples/` so the
 app can extract it straight into `DATA_ROOT`. Use `--format tar.gz` or `--format
 zip` if you prefer not to ship `zstandard`.
 
+`build_results_archive.sh` writes `data/dist/amat-results-slim.tar.zst` with
+per-run `run_summary.json`, `metrics.json`, and `predictions/` (no
+`checkpoint.pth` / `model_best.pth`).
+
 | Mode | Contents | Compressed | Extracted |
 |------|----------|-----------|-----------|
-| `--sample` (default) | Super1–4 (all splits) + instance annotations/validation + 2 example images | ~33 MB | ~135 MB |
-| `--full` | All 7 benchmarks (Super1–4 + EBC1–3), full instance-seg (train/val/annotations), complete examples gallery | ~169 MB | ~483 MB |
+| data `--sample` (default) | Super1–4 (all splits) + instance annotations/validation + 2 example images | ~33 MB | ~135 MB |
+| data `--full` | All 7 benchmarks (Super1–4 + EBC1–3), full instance-seg (train/val/annotations), complete examples gallery | ~169 MB | ~483 MB |
+| results slim | All local MPS run metrics, summaries, and val prediction panels | ~27 MB | ~31 MB |
 
 ### 2. Upload to R2
 
@@ -126,35 +137,40 @@ zip` if you prefer not to ship `zstandard`.
 wrangler r2 bucket create microscopy-analysis-datasets
 wrangler r2 object put microscopy-analysis-datasets/amat-data-sample.tar.zst \
   --file data/dist/amat-data-sample.tar.zst --content-type application/zstd --remote
+wrangler r2 object put microscopy-analysis-datasets/amat-results-slim.tar.zst \
+  --file data/dist/amat-results-slim.tar.zst --content-type application/zstd --remote
 wrangler r2 bucket dev-url enable microscopy-analysis-datasets   # or attach a custom domain
 ```
 
-Both archives are provisioned in the bucket
+Archives provisioned in the bucket
 ([#19](https://github.com/tyc-aidev/microscopy-analysis/issues/19),
 [#22](https://github.com/tyc-aidev/microscopy-analysis/issues/22)):
 
 ```
-https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst     # ~169 MB (all 7 benchmarks)
-https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst   # ~33 MB  (trimmed, disk-constrained)
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst       # ~169 MB (all 7 benchmarks)
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-sample.tar.zst     # ~33 MB  (trimmed, disk-constrained)
+https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-results-slim.tar.zst    # ~27 MB  (14 MPS runs, no checkpoints)
 ```
 
-The **full** archive extracts to ~483 MB and peaks near ~660 MB transiently
+The **full** data archive extracts to ~483 MB and peaks near ~660 MB transiently
 during download+extract; this fits Streamlit Community Cloud's ephemeral `/tmp`
 ([#25](https://github.com/tyc-aidev/microscopy-analysis/issues/25)). Prefer the
-trimmed **sample** only on disk-constrained hosts.
+trimmed **sample** only on disk-constrained hosts. Slim results fit easily
+alongside either data archive.
 
 ### 3. Configure Streamlit secrets (required for remote fetch)
 
 Remote fetching is **explicit opt-in**: with no source configured the app shows
-its download prompt and fetches nothing. To serve data on Streamlit Cloud, set
-the public archive URL in the app's **Settings → Secrets** (use the full URL to
-browse all 7 benchmarks), then **reboot the app**:
+its download prompt and fetches nothing. To serve data and Local Training on
+Streamlit Cloud, set the public archive URLs in the app's **Settings → Secrets**,
+then **reboot the app**:
 
 ```toml
 DATA_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-data-full.tar.zst"
+RESULTS_ARCHIVE_URL = "https://pub-9aef84b8fae545b9a233bfb899a636ae.r2.dev/amat-results-slim.tar.zst"
 ```
 
-For a private bucket, use S3-compatible credentials instead (downloaded via `boto3`):
+For a private data bucket, use S3-compatible credentials instead (downloaded via `boto3`):
 
 ```toml
 R2_ENDPOINT = "https://<account-id>.r2.cloudflarestorage.com"
@@ -165,10 +181,15 @@ R2_OBJECT_KEY = "amat-data-sample.tar.zst"
 ```
 
 On first load, `explorer.lib.remote_data.ensure_data()` downloads and extracts the
-archive once per container into `/tmp/amat-data` (override with `REMOTE_DATA_ROOT`)
-and drops a `.ready` marker. Local runs with populated `DATA_ROOT` skip the
-download entirely. Set the app entry point to `explorer/app.py`.
+data archive once per container into `/tmp/amat-data` (override with
+`REMOTE_DATA_ROOT`) and drops a `.ready` marker. Likewise,
+`explorer.lib.remote_results.ensure_results()` fetches the slim results archive
+into `/tmp/amat-results` (override with `REMOTE_RESULTS_ROOT`) and sets
+`RESULTS_ROOT`. Local runs with populated `DATA_ROOT` / `results/` skip the
+downloads entirely. Set the app entry point to `explorer/app.py`.
 
+Cloud does **not** install PyTorch, so Local Training shows pre-rendered
+prediction panels only (no live inference).
 ## MicroNet reproduction (Sprint 0+)
 
 The PyTorch reproduction (`src/microscopy_analysis/`) reproduces Stuckner et al. 2022 using NASA's
